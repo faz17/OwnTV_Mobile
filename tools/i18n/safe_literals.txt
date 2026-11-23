@@ -465,6 +465,7 @@
 1	technical	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsGroupRows.kt	settings_lock_menus
 1	preference-key	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsGroupRows.kt	tab_CONTENT_MENUS
 1	preference-key	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsGroupRows.kt	tab_CUSTOMIZE
+1	technical	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsGroupRows.kt	tab_DISPATCHARR
 1	preference-key	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsGroupRows.kt	tab_DNS
 1	preference-key	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsGroupRows.kt	tab_EPG
 1	preference-key	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsGroupRows.kt	tab_GLASS_EFFECT
