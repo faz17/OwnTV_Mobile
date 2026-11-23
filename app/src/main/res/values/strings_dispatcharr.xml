@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dispatcharr_mobile_title" translatable="false">Dispatcharr</string>
+    <string name="dispatcharr_mobile_description">Switch the upstream source of a Dispatcharr live channel without changing channels. Enter your HTTPS server address and an administrator API key. The key is encrypted on this phone.</string>
+    <string name="dispatcharr_mobile_url">Dispatcharr HTTPS address</string>
+    <string name="dispatcharr_mobile_url_hint" translatable="false">https://your-server.example</string>
+    <string name="dispatcharr_mobile_api_key">Administrator API key</string>
+    <string name="dispatcharr_mobile_save">Save connection</string>
+    <string name="dispatcharr_mobile_remove">Remove connection</string>
+    <string name="dispatcharr_mobile_invalid">Enter a valid HTTPS address and API key</string>
+    <string name="dispatcharr_mobile_saved">Saved</string>
+    <string name="dispatcharr_mobile_configured">Configured</string>
+    <string name="dispatcharr_mobile_loading">Loading sources…</string>
+    <string name="dispatcharr_mobile_load_failed">Could not load sources</string>
+    <string name="dispatcharr_mobile_switching">Switching…</string>
+    <string name="dispatcharr_mobile_active">Active</string>
+    <string name="dispatcharr_mobile_switch_failed">Could not change source</string>
+    <string name="dispatcharr_mobile_playlist_versions">Other OwnTV playlist versions</string>
+</resources>
