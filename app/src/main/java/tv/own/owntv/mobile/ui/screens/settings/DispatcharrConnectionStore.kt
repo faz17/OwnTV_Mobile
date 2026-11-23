@@ -17,7 +17,8 @@ import javax.crypto.spec.GCMParameterSpec
 /**
  * Explicit opt-in Dispatcharr administrator connection. Credentials are stored only on this
  * Android installation, protected with an Android Keystore AES-GCM key. They are never
- * included in a playlist, log, backup or build configuration.
+ * included in a playlist, log or build configuration. Password-protected user-initiated
+ * Settings backups may contain the connection, sealed with the backup passphrase.
  *
  * The HTTPS origin must be entered by the user: never derive the admin API target from
  * an untrusted IPTV playlist, Xtream redirect or channel URL.
@@ -38,6 +39,20 @@ class DispatcharrConnectionStore private constructor(context: Context) {
         val encoded = Base64.encodeToString(cipher.iv + cipher.doFinal(plain.toByteArray(Charsets.UTF_8)), Base64.NO_WRAP)
         check(preferences.edit().putString(ENTRY, encoded).commit())
         _connection.value = Connection(normalized, apiKey.trim())
+    }
+
+    /**
+     * BackupManager encrypts this whole value before writing it into the backup container.
+     * Without a backup password, it never calls this exporter.
+     */
+    fun exportBackupJson(): String? = _connection.value?.let { connection ->
+        JSONObject().put("origin", connection.origin).put("key", connection.apiKey).toString()
+    }
+
+    /** Re-encrypt recovered credentials using this device's own Android Keystore key. */
+    fun restoreBackupJson(value: String) {
+        val data = JSONObject(value)
+        save(data.getString("origin"), data.getString("key"))
     }
 
     fun clear() {

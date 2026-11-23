@@ -57,6 +57,17 @@ fun SourcesSheet(
     MobileBottomSheet(onDismissRequest = onDismiss, title = title) {
         StageSheetHeader(title = title)
         val list = versions ?: return@MobileBottomSheet
+        // Avoid briefly rendering only OwnTV playlist versions before Dispatcharr loads.
+        if (dispatcharr != null && remote == null) {
+            StageMenuItem(
+                stringResource(R.string.dispatcharr_mobile_title),
+                onClick = {},
+                icon = MobileIcons.LiveTv,
+                value = stringResource(R.string.dispatcharr_mobile_loading),
+                enabled = false,
+            )
+            return@MobileBottomSheet
+        }
         val remoteStreams = remote?.getOrNull()
         val remoteIsLoading = dispatcharr != null && remote == null
         val remoteHasFailed = dispatcharr != null && remote?.isFailure == true
