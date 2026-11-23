@@ -28,6 +28,7 @@ coroutines = "1.11.0"
 
 # --- Third party ---
 coil = "3.6.2"
+okhttp = "5.5.0"
 # Media3 — only the subtitle view. The player itself is core's; this app draws the image
 # subtitles (PGS/VOBSUB/DVB) the engine hands to ExoPlayer, and nothing else from media3.
 media3 = "1.11.1"
@@ -117,6 +118,7 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 # Image loading
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 
 # Dependency injection
 koin-bom = { group = "io.insert-koin", name = "koin-bom", version.ref = "koin" }
