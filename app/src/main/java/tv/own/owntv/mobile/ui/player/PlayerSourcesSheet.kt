@@ -16,6 +16,7 @@ import androidx.compose.ui.res.stringResource
 import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.live.ChannelVersion
 import tv.own.owntv.core.dispatcharr.DispatcharrApi
+import tv.own.owntv.mobile.ui.screens.settings.dispatcharrFailureLabel
 import tv.own.owntv.mobile.R
 import tv.own.owntv.mobile.ui.components.MobileBottomSheet
 import tv.own.owntv.mobile.ui.components.MobileIcons
@@ -46,7 +47,7 @@ fun SourcesSheet(
         value = dispatcharr?.let { runCatching { it.load() } }
     }
     var switching by remember { mutableStateOf<Int?>(null) }
-    var switchFailed by remember { mutableStateOf(false) }
+    var switchError by remember { mutableStateOf<Throwable?>(null) }
     val scope = rememberCoroutineScope()
     val title = stringResource(R.string.player_tool_sources)
     val separator = stringResource(R.string.content_epg_bits_separator)
@@ -71,6 +72,13 @@ fun SourcesSheet(
                         enabled = false,
                     )
                 }
+                if (remoteHasFailed) item(key = "dispatcharr_diagnostic") {
+                    StageMenuItem(
+                        dispatcharrFailureLabel(remote?.exceptionOrNull()),
+                        onClick = {},
+                        enabled = false,
+                    )
+                }
                 if (remoteStreams != null) {
                     items(remoteStreams.streams, key = { "dispatcharr_${it.id}" }) { source ->
                         val active = source.id == remoteStreams.activeStreamId
@@ -79,11 +87,12 @@ fun SourcesSheet(
                             onClick = {
                                 if (!active && switching == null) {
                                     switching = source.id
-                                    switchFailed = false
+                                    switchError = null
                                     scope.launch {
-                                        val ok = runCatching { dispatcharr.onPick(source.id) }.isSuccess
+                                        val result = runCatching { dispatcharr.onPick(source.id) }
                                         switching = null
-                                        if (ok) onDismiss() else switchFailed = true
+                                        if (result.isSuccess) onDismiss()
+                                        else switchError = result.exceptionOrNull()
                                     }
                                 }
                             },
@@ -98,8 +107,8 @@ fun SourcesSheet(
                         )
                     }
                 }
-                if (switchFailed) item(key = "dispatcharr_failed") {
-                    StageMenuItem(stringResource(R.string.dispatcharr_mobile_switch_failed), onClick = {}, enabled = false)
+                if (switchError != null) item(key = "dispatcharr_failed") {
+                    StageMenuItem(dispatcharrFailureLabel(switchError), onClick = {}, enabled = false)
                 }
                 item(key = "playlist_versions_header") {
                     StageMenuItem(stringResource(R.string.dispatcharr_mobile_playlist_versions), onClick = {}, enabled = false)

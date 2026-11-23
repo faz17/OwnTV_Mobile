@@ -16,4 +16,15 @@
     <string name="dispatcharr_mobile_active">Active</string>
     <string name="dispatcharr_mobile_switch_failed">Could not change source</string>
     <string name="dispatcharr_mobile_playlist_versions">Other OwnTV playlist versions</string>
+    <string name="dispatcharr_mobile_test">Test saved API connection</string>
+    <string name="dispatcharr_mobile_testing">Testing…</string>
+    <string name="dispatcharr_mobile_test_success">API connection successful</string>
+    <string name="dispatcharr_mobile_test_failed">API connection failed</string>
+    <string name="dispatcharr_diag_auth">Authentication</string>
+    <string name="dispatcharr_diag_channel">Channel lookup</string>
+    <string name="dispatcharr_diag_streams">Assigned streams</string>
+    <string name="dispatcharr_diag_status">Current stream status</string>
+    <string name="dispatcharr_diag_switch">Source switching</string>
+    <string name="dispatcharr_diag_http">%1$s — HTTP %2$d</string>
+    <string name="dispatcharr_diag_network">%1$s — network or invalid response</string>
 </resources>
