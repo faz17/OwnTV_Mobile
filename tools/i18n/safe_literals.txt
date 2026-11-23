@@ -512,6 +512,7 @@
 1	uri	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsLeaf.kt	browsing
 1	uri	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsLeaf.kt	catchup-playlists
 1	uri	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsLeaf.kt	customize
+1	uri	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsLeaf.kt	dispatcharr
 1	uri	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsLeaf.kt	dns
 1	log	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsLeaf.kt	epg
 1	uri	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsLeaf.kt	external
