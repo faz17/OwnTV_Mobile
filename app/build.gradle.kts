@@ -352,6 +352,7 @@ dependencies {
     implementation(libs.androidx.media3.ui)
 
     implementation(libs.coil.compose)
+    implementation(libs.okhttp)
     implementation(libs.coil.network.okhttp)
 
     // Casting. The sender half only: the Chromecast decodes the stream itself, so nothing of the
