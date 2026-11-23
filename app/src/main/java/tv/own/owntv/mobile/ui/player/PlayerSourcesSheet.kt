@@ -1,6 +1,7 @@
 package tv.own.owntv.mobile.ui.player
 
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
@@ -12,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.live.ChannelVersion
@@ -23,6 +25,7 @@ import tv.own.owntv.mobile.ui.components.MobileIcons
 import tv.own.owntv.mobile.ui.components.sheetListHeight
 import tv.own.owntv.mobile.ui.stage.StageMenuItem
 import tv.own.owntv.mobile.ui.stage.StageSheetHeader
+import tv.own.owntv.mobile.ui.stage.StageTag
 
 class MobileDispatcharrSources(
     val load: suspend () -> DispatcharrApi.ChannelSources,
@@ -97,6 +100,9 @@ fun SourcesSheet(
                                 }
                             },
                             icon = MobileIcons.LiveTv,
+                            inlineTag = source.providerAccountName?.takeIf { it.isNotBlank() }?.let { accountName ->
+                                { StageTag(accountName, modifier = Modifier.widthIn(max = 115.dp)) }
+                            },
                             value = when {
                                 switching == source.id -> stringResource(R.string.dispatcharr_mobile_switching)
                                 active -> stringResource(R.string.dispatcharr_mobile_active)
