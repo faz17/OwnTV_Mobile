@@ -133,6 +133,18 @@ fun PlayerScreen(
     cast: CastController = koinInject(),
     downloadWatchGuard: tv.own.owntv.core.download.DownloadWatchGuard = koinInject(),
 ) {
+    val dispatcharrContext = LocalContext.current
+    val dispatcharrStore = remember(dispatcharrContext) {
+        tv.own.owntv.mobile.ui.screens.settings.DispatcharrConnectionStore.get(dispatcharrContext)
+    }
+    val dispatcharrConnection by dispatcharrStore.connection.collectAsStateWithLifecycle()
+    val dispatcharrHttp = remember { okhttp3.OkHttpClient.Builder()
+        .callTimeout(12, java.util.concurrent.TimeUnit.SECONDS).build() }
+    val dispatcharrApi = remember(dispatcharrConnection, dispatcharrHttp) {
+        dispatcharrConnection?.let {
+            tv.own.owntv.core.dispatcharr.DispatcharrApi(dispatcharrHttp, it.origin, it.apiKey)
+        }
+    }
     val player = tuner.player
     val downloadWatchPrompt by downloadWatchGuard.prompt.collectAsStateWithLifecycle()
 
@@ -884,11 +896,23 @@ fun PlayerScreen(
             },
         )
         channel?.takeIf { showSources }?.let { playing ->
+            val api = dispatcharrApi
+            val server = dispatcharrConnection?.origin
+            val remote = if (api != null && server != null &&
+                (tv.own.owntv.core.dispatcharr.DispatcharrChannelUrls.parseForServer(playing.streamUrl, server) != null ||
+                    tv.own.owntv.core.dispatcharr.DispatcharrXtreamChannelUrls.parseForServer(playing.streamUrl, server) != null)
+            ) {
+                MobileDispatcharrSources(
+                    load = { api.sourcesFor(playing.streamUrl) },
+                    onPick = { streamId -> api.switch(playing.streamUrl, streamId) },
+                )
+            } else null
             SourcesSheet(
                 load = { channelVersions.of(playing) },
                 playingId = playing.id,
                 onPick = { tuner.switchTo(it) },
                 onDismiss = { showSources = false },
+                dispatcharr = remote,
             )
         }
         if (otherChannels) {

@@ -42,6 +42,7 @@ enum class SettingsLeaf(
 
     LANGUAGE(SettingsGroup.APP, "language", R.string.settings_language),
     PROXY(SettingsGroup.APP, "proxy", R.string.common_proxy),
+    DISPATCHARR(SettingsGroup.APP, "dispatcharr", R.string.dispatcharr_mobile_title),
     DNS(SettingsGroup.APP, "dns", R.string.settings_dns),
 
     // Sports Hub: one page in App, and the pages its rows open.
