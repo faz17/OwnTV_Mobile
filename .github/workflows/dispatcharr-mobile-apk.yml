@@ -54,7 +54,19 @@ jobs:
         run: |
           chmod +x ./gradlew
           set -o pipefail
-          ./gradlew :core:testDebugUnitTest :player-core:testDebugUnitTest --console=plain --no-daemon 2>&1 | tee core-test.log || {
+          # Retry only Maven Central HTTP 429 rate limits, not genuine test failures.
+          for attempt in 1 2 3; do
+            if ./gradlew :core:testDebugUnitTest :player-core:testDebugUnitTest --console=plain --no-daemon 2>&1 | tee core-test.log; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ] && grep -Eq 'status code 429|Too Many Requests' core-test.log; then
+              echo "::warning::Maven Central HTTP 429; retrying Core tests (attempt $((attempt + 1))/3)."
+              sleep $((attempt * 30))
+            else
+              break
+            fi
+          done
+          {
             echo "### Core test or compilation errors" >> "$GITHUB_STEP_SUMMARY"
             echo '~~~text' >> "$GITHUB_STEP_SUMMARY"
             grep -E -A 9 -B 3 '(^e: |^error: |^FAILURE:|^\\* What went wrong:|^> Task .*FAILED|^Execution failed for task|^> Could not|^.*tests? FAILED|^.*Exception:|^.*AssertionError)' core-test.log | tail -n 120 >> "$GITHUB_STEP_SUMMARY" || true
