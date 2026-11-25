@@ -115,8 +115,11 @@ jobs:
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
           APK=$(find OwnTV_Mobile/app/build/outputs/apk/standard/debug -name '*.apk' -type f | head -n 1)
           test -n "$APKSIGNER" && test -n "$APK"
-          "$APKSIGNER" verify --print-certs "$APK" | grep 'Signer #1 certificate SHA-256 digest:'
-          echo "APK uses the persistent signing certificate."
+          # apksigner's certificate output differs between SDK revisions; grep
+          # must never turn a correctly verified APK into a failed build.
+          # The exit status of apksigner itself is authoritative.
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
+          echo "APK signature verified successfully with apksigner."
 
       - name: Upload mobile APK
         if: github.event_name == 'push'
