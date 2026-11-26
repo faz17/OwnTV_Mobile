@@ -73,6 +73,7 @@
 1	protocol	app/src/main/java/tv/own/owntv/mobile/ui/nav/MobileDestination.kt	library
 1	protocol	app/src/main/java/tv/own/owntv/mobile/ui/nav/MobileDestination.kt	live
 1	protocol	app/src/main/java/tv/own/owntv/mobile/ui/nav/MobileDestination.kt	more
+1	protocol	app/src/main/java/tv/own/owntv/mobile/ui/nav/MobileDestination.kt	recordings
 1	protocol	app/src/main/java/tv/own/owntv/mobile/ui/nav/MobileDestination.kt	movies
 1	protocol	app/src/main/java/tv/own/owntv/mobile/ui/nav/MobileDestination.kt	series
 1	protocol	app/src/main/java/tv/own/owntv/mobile/ui/nav/MobileDestination.kt	settings
