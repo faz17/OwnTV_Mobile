@@ -36,6 +36,7 @@ import tv.own.owntv.mobile.ui.screens.library.DetailScreen
 import tv.own.owntv.mobile.ui.screens.library.LibraryScreen
 import tv.own.owntv.mobile.ui.screens.library.LibraryTab
 import tv.own.owntv.mobile.ui.screens.live.LiveScreen
+import tv.own.owntv.mobile.ui.screens.recordings.RecordingsScreen
 import tv.own.owntv.mobile.ui.screens.search.SearchScreen
 import tv.own.owntv.mobile.ui.screens.sports.SportsMatchScreen
 import tv.own.owntv.mobile.ui.screens.sports.SportsPlayback
@@ -154,6 +155,9 @@ fun MobileNavHost(
                     MobileDestination.LIVE -> LiveScreen(
                         scrollToTop = scrollToTop,
                         onOpenPlayer = { navController.navigate(PLAYER_ROUTE) },
+                    )
+                    MobileDestination.RECORDINGS -> RecordingsScreen(
+                        onPlayerOpened = { navController.navigate(PLAYER_ROUTE) },
                     )
                     MobileDestination.DOWNLOADS -> DownloadsScreen(
                         onPlayerOpened = { navController.navigate(PLAYER_ROUTE) },

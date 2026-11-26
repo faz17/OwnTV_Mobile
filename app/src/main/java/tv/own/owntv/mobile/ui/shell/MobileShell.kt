@@ -122,6 +122,7 @@ fun MobileShell(
     val shellViewModel: ShellViewModel = koinViewModel()
     val sportsPlayback: SportsPlayback = koinInject()
     val sections by shellViewModel.visibleSections.collectAsStateWithLifecycle()
+    val navOrder by koinInject<SettingsRepository>().navMenuOrder.collectAsStateWithLifecycle(tv.own.owntv.core.nav.MainSection.browseOrder)
 
     val profilesViewModel: ProfilesViewModel = koinViewModel()
     val gateSession: ProfileGateSession = koinViewModel()
@@ -208,7 +209,10 @@ fun MobileShell(
     // A phone held sideways (409 dp tall) gets the compact rail and the one-line header.
     val compactRail = windowHeightDp() < 600
     val destinations =
-        (if (useRail) MobileDestination.rail else MobileDestination.bottomBar).visible(sections)
+        (if (useRail) MobileDestination.rail else MobileDestination.bottomBar)
+            .visible(sections)
+            .ordered(navOrder)
+            .let { if (useRail) it else it.take(5) }
     // A detail route ("live/42/false") keeps its tab selected and its tab's title: on a phone the
     // channel you opened is still Live TV, and the bottom bar must not go blank while you watch it.
     val current = destinations.firstOrNull { it.route == currentRoute }

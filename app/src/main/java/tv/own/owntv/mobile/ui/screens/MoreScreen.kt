@@ -126,6 +126,9 @@ fun MoreScreen(
                     pinned.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.more_settings_pinned_count, it, it) },
                 ) { onNavigate(MobileDestination.SETTINGS) }
                 MoreItem(
+                    R.string.recording_title, MobileIcons.Record, null,
+                ) { onNavigate(MobileDestination.RECORDINGS) }
+                MoreItem(
                     R.string.common_nav_downloads, MobileIcons.Download,
                     running.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.more_downloads_running_count, it, it) },
                 ) { onNavigate(MobileDestination.DOWNLOADS) }

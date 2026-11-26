@@ -34,6 +34,7 @@ enum class MobileDestination(
     /** Movies and Series as one place, for the phone's five-wide bar; the rail keeps them apart. */
     LIBRARY("library", R.string.common_nav_library, MobileIcons.Movie, setOf(MainSection.MOVIES, MainSection.SERIES)),
     MORE("more", R.string.common_nav_more, MobileIcons.MoreHoriz, emptySet()),
+    RECORDINGS("recordings", R.string.recording_title, MobileIcons.Record, setOf(MainSection.RECORDINGS)),
     DOWNLOADS(
         "downloads",
         R.string.common_nav_downloads,
@@ -48,14 +49,14 @@ enum class MobileDestination(
          * Library so Sports fits in five. More is not on it: the avatar at the top right opens it, as the
          * TV rail ends in the profile.
          */
-        val bottomBar: List<MobileDestination> = listOf(HOME, LIVE, SPORTS, GUIDE, LIBRARY)
+        val bottomBar: List<MobileDestination> = listOf(HOME, LIVE, SPORTS, GUIDE, LIBRARY, RECORDINGS)
 
         /**
          * The rail (`railH`), in order: the places, Downloads, then More as the last
          * item. Settings is not on it — it is what More is for, on every width.
          */
         val rail: List<MobileDestination> =
-            listOf(HOME, LIVE, SPORTS, GUIDE, MOVIES, SERIES, DOWNLOADS, MORE)
+            listOf(HOME, LIVE, SPORTS, GUIDE, MOVIES, SERIES, DOWNLOADS, RECORDINGS, MORE)
 
         /**
          * The place selected for [route] when its own is not shown: a film under Movies keeps Library lit on
@@ -69,6 +70,15 @@ enum class MobileDestination(
                 else -> null
             }
         }
+
+        /** User-defined browse order; pinned destinations stay after the browse list. */
+        fun List<MobileDestination>.ordered(order: List<MainSection>): List<MobileDestination> =
+            sortedBy { destination ->
+                if (destination == MORE || destination == SETTINGS) Int.MAX_VALUE
+                else destination.sections.minOfOrNull { section ->
+                    order.indexOf(section).takeIf { it >= 0 } ?: Int.MAX_VALUE - 1
+                } ?: Int.MAX_VALUE - 2
+            }
 
         /**
          * Filters a bar or rail to what the active playlist actually offers. A destination with no
