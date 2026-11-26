@@ -104,6 +104,7 @@ fun NavigationSheet(vm: SettingsViewModel, onDismiss: () -> Unit) {
                 }
             },
         ) { StageRowValue(stringResource(if (dynamic) R.string.settings_dynamic else R.string.settings_static), StageChevron.DOWN) }
+        if (!dynamic) {
         StageLabel(stringResource(R.string.dispatcharr_nav_reorder_title), Modifier.padding(start = 12.dp, top = 8.dp, bottom = 4.dp))
         // Both modes share the order. Dynamic hides unavailable sections automatically,
         // Static shows switches. Search and More remain pinned outside this list.
@@ -146,6 +147,7 @@ fun NavigationSheet(vm: SettingsViewModel, onDismiss: () -> Unit) {
                     )
                 }
             }
+        }
         }
         StageSettingRow(
             title = stringResource(R.string.settings_sheet_counts),
