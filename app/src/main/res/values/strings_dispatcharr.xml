@@ -31,4 +31,6 @@
     <string name="dispatcharr_mobile_record_unsupported">Server recording requires a Dispatcharr proxy or Xtream channel URL on the configured server.</string>
     <string name="dispatcharr_mobile_record_failed">Dispatcharr could not create or stop the recording. Check DVR permissions and server availability.</string>
     <string name="dispatcharr_diag_recording">Server recording</string>
+    <string name="dispatcharr_nav_reorder_title">Navigation order · Hold and drag the six-square handle</string>
+    <string name="dispatcharr_nav_drag_handle">Move %1$s in the navigation menu</string>
 </resources>
