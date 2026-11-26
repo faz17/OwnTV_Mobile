@@ -49,7 +49,7 @@ enum class MobileDestination(
          * Library so Sports fits in five. More is not on it: the avatar at the top right opens it, as the
          * TV rail ends in the profile.
          */
-        val bottomBar: List<MobileDestination> = listOf(HOME, LIVE, SPORTS, GUIDE, LIBRARY, RECORDINGS, MORE)
+        val bottomBar: List<MobileDestination> = listOf(HOME, LIVE, SPORTS, GUIDE, LIBRARY, RECORDINGS)
 
         /**
          * The rail (`railH`), in order: the places, Downloads, then More as the last

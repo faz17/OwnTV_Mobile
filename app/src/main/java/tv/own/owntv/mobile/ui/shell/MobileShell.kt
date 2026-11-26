@@ -218,7 +218,7 @@ fun MobileShell(
             .let { items ->
                 if (navMode == SettingsRepository.NavMenuMode.STATIC) items.ordered(navOrder) else items
             }
-            .let { if (useRail) it else it }
+            .let { if (useRail) it else it.take(5) }
     // A detail route ("live/42/false") keeps its tab selected and its tab's title: on a phone the
     // channel you opened is still Live TV, and the bottom bar must not go blank while you watch it.
     val current = destinations.firstOrNull { it.route == currentRoute }
@@ -818,6 +818,14 @@ private fun NavHostController.onNavClick(
     sportsPlayback: SportsPlayback,
 ) {
     when {
+        // More is a hub, not a content tab. Return to the existing More entry when
+        // opening Recordings or Settings from it; otherwise open it afresh.
+        // Do not restore a saved tab stack, which can reopen the child page instead.
+        destination == MobileDestination.MORE -> {
+            if (!popBackStack(MobileDestination.MORE.route, inclusive = false)) {
+                navigate(MobileDestination.MORE.route) { launchSingleTop = true }
+            }
+        }
         // A film or a channel opened under this tab: back to the tab's own list first (only the list
         // itself scrolls to the top).
         // A film lit under Library but opened from Search is not on Library's stack: go to Library then.
