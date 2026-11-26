@@ -232,12 +232,28 @@ fun GuideScreen(
 
     val reminderRows by vm.reminderRows.collectAsStateWithLifecycle()
     val recordingRows by vm.recordingRows.collectAsStateWithLifecycle()
-    val marks = remember(reminderRows, recordingRows) {
+    val remoteRows by vm.remoteRecordings.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { vm.refreshRemoteRecordings() }
+    val loadedChannels = channels.itemSnapshotList.items
+    val remoteMarks by produceState<Set<Pair<Long, Long>>>(
+        emptySet(), remoteRows, loadedChannels, day,
+    ) {
+        val found = HashSet<Pair<Long, Long>>()
+        for (channel in loadedChannels) {
+            for (programme in vm.row(channel)) {
+                if (vm.remoteRecordingFor(channel, programme) != null) {
+                    found += channel.id to programme.startMs
+                }
+            }
+        }
+        value = found
+    }
+    val marks = remember(reminderRows, recordingRows, remoteMarks) {
         GuideMarks(
             reminders = reminderRows.mapTo(HashSet()) { it.channelId to it.startMs },
             recordings = recordingRows
                 .filter { it.status == RecordingStatus.RECORDING || it.status == RecordingStatus.SCHEDULED }
-                .mapTo(HashSet()) { it.channelId to it.programmeStartMs },
+                .mapTo(HashSet()) { it.channelId to it.programmeStartMs } + remoteMarks,
         )
     }
 
@@ -668,6 +684,8 @@ private fun GuideTopBlock(
     val reminderRows by vm.reminderRows.collectAsStateWithLifecycle()
     val recordingRows by vm.recordingRows.collectAsStateWithLifecycle()
     val reminderSet = reminderRows.any { it.channelId == channel.id && it.startMs == programme.startMs }
+    val remoteRows by vm.remoteRecordings.collectAsStateWithLifecycle()
+    val remote = remember(remoteRows, channel.id, programme.startMs) { vm.remoteRecordingFor(channel, programme) }
     val recording = remember(recordingRows, channel.id, programme.startMs) { vm.recordingFor(channel, programme) }
     val requestReminder = rememberReminderRequest()
     val shape = RoundedCornerShape(14.dp)
@@ -726,16 +744,19 @@ private fun GuideTopBlock(
                         onClick = { requestReminder(reminderSet) { vm.toggleReminder(channel, programme) } },
                     )
                 }
-                if (vm.canRecord(channel, programme) || recording != null) {
+                if (vm.canRecord(channel, programme) || recording != null || remote != null) {
                     StageButton(
                         onClick = {
-                            when (recording?.status) {
-                                RecordingStatus.RECORDING -> vm.stopRecording(recording)
-                                RecordingStatus.SCHEDULED -> vm.cancelRecording(recording)
+                            when {
+                                remote != null -> vm.cancelRemoteRecording(remote)
+                                recording?.status == RecordingStatus.RECORDING -> vm.stopRecording(recording)
+                                recording?.status == RecordingStatus.SCHEDULED -> vm.cancelRecording(recording)
                                 else -> vm.record(channel, programme)
                             }
                         },
-                        text = stringResource(recordLabel(recording?.status, programme, nowMs)),
+                        text = stringResource(if (remote != null) {
+                            if (remote.isActive(nowMs)) R.string.recording_stop else R.string.common_cancel
+                        } else recordLabel(recording?.status, programme, nowMs)),
                         icon = MobileIcons.Record,
                         small = true,
                     )
@@ -935,6 +956,8 @@ internal fun ProgrammeSheet(
     val lead by vm.reminderLead.collectAsStateWithLifecycle()
     val catchupPlayer by vm.catchupPlayer.collectAsStateWithLifecycle()
     val reminderSet = reminderRows.any { it.channelId == channel.id && it.startMs == programme.startMs }
+    val remoteRows by vm.remoteRecordings.collectAsStateWithLifecycle()
+    val remote = remember(remoteRows, channel.id, programme.startMs) { vm.remoteRecordingFor(channel, programme) }
     val recording = remember(recordingRows, channel.id, programme.startMs) { vm.recordingFor(channel, programme) }
     val seriesRule by produceState<tv.own.owntv.core.database.entity.RecordingRuleEntity?>(null, channel.id, programme.title, recordingRows) {
         value = vm.seriesRuleFor(channel, programme)
@@ -1007,14 +1030,17 @@ internal fun ProgrammeSheet(
                         ),
                     )
                 }
-                if (vm.canRecord(channel, programme) || recording != null) {
+                if (vm.canRecord(channel, programme) || recording != null || remote != null) {
                     StageGroupLabel(stringResource(R.string.content_menu_group_record).uppercase(locale))
                     StageMenuItem(
-                        stringResource(recordLabel(recording?.status, programme, nowMs)),
+                        stringResource(if (remote != null) {
+                            if (remote.isActive(nowMs)) R.string.recording_stop else R.string.common_cancel
+                        } else recordLabel(recording?.status, programme, nowMs)),
                         onClick = {
-                            when (recording?.status) {
-                                RecordingStatus.RECORDING -> vm.stopRecording(recording)
-                                RecordingStatus.SCHEDULED -> vm.cancelRecording(recording)
+                            when {
+                                remote != null -> vm.cancelRemoteRecording(remote)
+                                recording?.status == RecordingStatus.RECORDING -> vm.stopRecording(recording)
+                                recording?.status == RecordingStatus.SCHEDULED -> vm.cancelRecording(recording)
                                 else -> vm.record(channel, programme)
                             }
                             onDismiss()

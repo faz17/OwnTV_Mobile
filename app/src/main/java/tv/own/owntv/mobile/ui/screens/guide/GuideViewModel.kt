@@ -539,6 +539,59 @@ class GuideViewModel(
 
     // --- Recording, from the guide. The television's own logic, phone-shaped. ---
 
+    /** Dispatcharr's current DVR jobs, shared by guide badges and programme actions. */
+    private val _remoteRecordings = MutableStateFlow<List<tv.own.owntv.core.dispatcharr.DispatcharrApi.ServerRecording>>(emptyList())
+    val remoteRecordings: StateFlow<List<tv.own.owntv.core.dispatcharr.DispatcharrApi.ServerRecording>> =
+        _remoteRecordings.asStateFlow()
+    private val remoteChannelIds = MutableStateFlow<Map<String, Int>>(emptyMap())
+
+    fun refreshRemoteRecordings() {
+        val api = tuner.dispatcharrDvrApi()
+        if (!tuner.isServerDvrConfigured() || api == null) {
+            _remoteRecordings.value = emptyList()
+            remoteChannelIds.value = emptyMap()
+            return
+        }
+        viewModelScope.launch {
+            runCatching { api.serverRecordings() to api.serverChannelIdsByUuid() }
+                .onSuccess { (rows, ids) ->
+                    remoteChannelIds.value = ids
+                    _remoteRecordings.value = rows
+                }
+        }
+    }
+
+    fun remoteRecordingFor(
+        channel: ChannelEntity,
+        programme: EpgProgrammeEntity,
+    ): tv.own.owntv.core.dispatcharr.DispatcharrApi.ServerRecording? {
+        if (!tuner.isServerDvrConfigured()) return null
+        val origin = tuner.dispatcharrOrigin() ?: return null
+        val numeric = tv.own.owntv.core.dispatcharr.DispatcharrXtreamChannelUrls
+            .parseForServer(channel.streamUrl, origin)?.channelId
+        val uuid = tv.own.owntv.core.dispatcharr.DispatcharrChannelUrls
+            .parseForServer(channel.streamUrl, origin)?.channelUuid
+        val remoteId = numeric ?: (uuid?.let { remoteChannelIds.value[it.lowercase(java.util.Locale.ROOT)] }
+            ?: return null)
+        val now = System.currentTimeMillis()
+        return _remoteRecordings.value.firstOrNull { row ->
+            row.channelId == remoteId &&
+                (row.isScheduled(now) || row.isActive(now)) &&
+                row.startMs <= programme.startMs + 5 * 60_000L &&
+                row.endMs >= programme.stopMs - 5 * 60_000L
+        }
+    }
+
+    fun cancelRemoteRecording(record: tv.own.owntv.core.dispatcharr.DispatcharrApi.ServerRecording) {
+        val api = tuner.dispatcharrDvrApi() ?: return
+        viewModelScope.launch {
+            runCatching {
+                if (record.isActive(System.currentTimeMillis())) api.stopServerRecording(record.id)
+                else api.cancelServerRecording(record.id)
+            }.onSuccess { refreshRemoteRecordings() }
+        }
+    }
+
     /** This profile's recordings, so a programme sheet knows whether it is already spoken for. */
     val recordingRows: StateFlow<List<tv.own.owntv.core.database.entity.RecordingEntity>> =
         settings.activeProfileId
@@ -566,7 +619,7 @@ class GuideViewModel(
         viewModelScope.launch {
             if (isServerDvrConfigured()) {
                 val window = recordings.windowFor(programme.startMs, programme.stopMs)
-                tuner.scheduleRecording(channel, window.first, window.last) {}
+                tuner.scheduleRecording(channel, window.first, window.last) { refreshRemoteRecordings() }
                 return@launch
             }
             val pid = settings.activeProfileId.first().takeIf { it >= 0 } ?: return@launch

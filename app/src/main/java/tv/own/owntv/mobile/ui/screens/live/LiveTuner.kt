@@ -128,7 +128,20 @@ class LiveTuner(
     private val dvrMutex = Mutex()
     private val remoteRecordingIds = MutableStateFlow<Map<Long, Int>>(emptyMap())
 
-    fun isServerDvrConfigured(): Boolean = dispatcharrStore.connection.value != null
+    private val recordingBackend = settings.recordingBackend.stateIn(
+        scope, SharingStarted.Eagerly, SettingsRepository.RecordingBackend.AUTO,
+    )
+
+    fun isServerDvrConfigured(): Boolean = when (recordingBackend.value) {
+        SettingsRepository.RecordingBackend.LOCAL -> false
+        SettingsRepository.RecordingBackend.DISPATCHARR -> true
+        SettingsRepository.RecordingBackend.AUTO -> dispatcharrStore.connection.value != null
+    }
+
+    fun dispatcharrDvrApi(): DispatcharrApi? = dispatcharrStore.connection.value?.let {
+        DispatcharrApi(dispatcharrHttp, it.origin, it.apiKey)
+    }
+    fun dispatcharrOrigin(): String? = dispatcharrStore.connection.value?.origin
 
     private fun serverRecorder(ch: ChannelEntity): DispatcharrApi? {
         val config = dispatcharrStore.connection.value ?: return null

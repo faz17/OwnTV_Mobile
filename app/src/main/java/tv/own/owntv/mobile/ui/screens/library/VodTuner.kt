@@ -415,6 +415,24 @@ class VodTuner(
      *   source, and a file on disk seeks, pauses and ends — treating it as live would take away the
      *   scrub bar on the one recording a user most wants to skip through.
      */
+    /**
+     * Playback of a file served by Dispatcharr. No local copy or URL token is stored.
+     */
+    suspend fun playServerRecording(url: String, title: String, authorizationHeader: String): Boolean {
+        val pid = currentProfileId() ?: return false
+        saveProgress()
+        liveTuner.stop()
+        cast.release(this)
+        player.play(url = url, title = title, isLive = false, httpHeaders = authorizationHeader)
+        player.exitAudioOnly()
+        session.attach(engine)
+        PlaybackService.start(context)
+        playingProfileId = pid
+        _playing.value = VodPlayback(MediaType.LIVE, RECORDING_ITEM_ID, title)
+        playingQueue = null
+        return true
+    }
+
     suspend fun playRecording(filePath: String, title: String, posterUrl: String?, categoryId: Long? = null): Boolean {
         val pid = currentProfileId() ?: return false
         if (settings.externalPlayerFor(MediaType.LIVE).first()) {

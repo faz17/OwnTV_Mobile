@@ -33,4 +33,14 @@
     <string name="dispatcharr_diag_recording">Server recording</string>
     <string name="dispatcharr_nav_reorder_title">Navigation order · Hold and drag the six-square handle</string>
     <string name="dispatcharr_nav_drag_handle">Move %1$s in the navigation menu</string>
+    <string name="dispatcharr_rec_backend_title">Destinazione registrazioni</string>
+    <string name="dispatcharr_rec_backend_description">Scegli dove salvare le nuove registrazioni. Dispatcharr registra sul server anche quando il telefono è spento.</string>
+    <string name="dispatcharr_rec_backend_auto">Automatica (comportamento attuale)</string>
+    <string name="dispatcharr_rec_backend_local">OwnTV · su questo dispositivo</string>
+    <string name="dispatcharr_rec_backend_server">Dispatcharr · sul server</string>
+    <string name="dispatcharr_remote_unconfigured">Configura la connessione API Dispatcharr nelle Impostazioni per visualizzare e riprodurre le registrazioni del server.</string>
+    <string name="dispatcharr_remote_load_failed">Impossibile caricare le registrazioni Dispatcharr. Controlla la connessione e i permessi DVR.</string>
+    <string name="dispatcharr_remote_refresh">Aggiorna registrazioni</string>
+    <string name="dispatcharr_remote_empty_scheduled">Nessuna registrazione programmata</string>
+    <string name="dispatcharr_remote_empty_completed">Nessuna registrazione completata</string>
 </resources>

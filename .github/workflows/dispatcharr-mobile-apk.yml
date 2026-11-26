@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   test-and-apk:
-    if: github.event_name == 'push' || github.head_ref == 'feature/dispatcharr-source-switch'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 70
     steps:
