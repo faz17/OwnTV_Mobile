@@ -138,7 +138,7 @@ class LiveTuner(
     }
 
     private fun serverRecorderOrFail(ch: ChannelEntity): DispatcharrApi =
-        serverRecorder(ch) ?: throw IllegalArgumentException("Not a Dispatcharr proxy channel")
+        serverRecorder(ch) ?: throw IllegalArgumentException()
 
     private fun reportServerDvrFailure(error: Throwable) {
         val label = if (error is IllegalArgumentException) {

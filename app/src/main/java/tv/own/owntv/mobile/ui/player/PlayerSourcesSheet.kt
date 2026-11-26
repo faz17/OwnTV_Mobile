@@ -87,7 +87,7 @@ fun SourcesSheet(
                         enabled = false,
                     )
                 }
-                if (dispatcharr.unavailable) item(key = "dispatcharr_unavailable") {
+                if (dispatcharr.unavailable) item(key = R.string.dispatcharr_mobile_unsupported) {
                     StageMenuItem(stringResource(R.string.dispatcharr_mobile_unsupported), onClick = {}, enabled = false)
                 }
                 if (remoteHasFailed) item(key = "dispatcharr_diagnostic") {
@@ -107,7 +107,7 @@ fun SourcesSheet(
                                     switching = source.id
                                     switchError = null
                                     scope.launch {
-                                        val result = runCatching { dispatcharr.onPick?.invoke(source.id) ?: error("Unavailable") }
+                                        val result = runCatching { requireNotNull(dispatcharr.onPick).invoke(source.id) }
                                         switching = null
                                         if (result.isSuccess) onDismiss()
                                         else switchError = result.exceptionOrNull()
