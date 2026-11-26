@@ -77,6 +77,7 @@ import tv.own.owntv.core.settings.SettingsRepository
 import tv.own.owntv.mobile.ui.nav.MobileDestination
 import tv.own.owntv.mobile.ui.nav.MobileDestination.Companion.standingFor
 import tv.own.owntv.mobile.ui.nav.MobileDestination.Companion.visible
+import tv.own.owntv.mobile.ui.nav.MobileDestination.Companion.ordered
 import tv.own.owntv.mobile.ui.nav.MobileNavHost
 import tv.own.owntv.mobile.playback.PipController
 import tv.own.owntv.mobile.ui.nav.PLAYER_ROUTE
