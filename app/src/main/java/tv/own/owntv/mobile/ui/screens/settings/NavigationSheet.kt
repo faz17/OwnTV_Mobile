@@ -2,7 +2,7 @@ package tv.own.owntv.mobile.ui.screens.settings
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
@@ -179,7 +179,7 @@ private fun ChoiceButton(text: String, on: Boolean, modifier: Modifier, onClick:
 }
 
 /**
- * Classic six-square drag grip. Long-press the grip (not the toggle) and
+ * Classic six-square drag grip. Drag the grip immediately (no long press) and
  * move up or down; the new order is persisted on finger release.
  */
 @Composable
@@ -197,7 +197,7 @@ private fun NavOrderRow(
     val onNudgeNow by rememberUpdatedState(onNudge)
     val onDropNow by rememberUpdatedState(onDrop)
     val dragLabel = stringResource(R.string.dispatcharr_nav_drag_handle, title)
-    val threshold = with(LocalDensity.current) { 48.dp.toPx() }
+    val threshold = with(LocalDensity.current) { 32.dp.toPx() }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         StageSettingRow(
             title = title,
@@ -215,7 +215,7 @@ private fun NavOrderRow(
                 .clickable(onClick = { onNudgeNow() })
                 .pointerInput(title) {
                     var travelled = 0f
-                    detectDragGesturesAfterLongPress(
+                    detectDragGestures(
                         onDragStart = { travelled = 0f },
                         onDrag = { change, delta ->
                             change.consume()

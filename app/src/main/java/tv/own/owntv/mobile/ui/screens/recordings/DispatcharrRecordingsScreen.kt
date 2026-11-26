@@ -5,6 +5,18 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
+import tv.own.owntv.mobile.ui.stage.StageIcon
+import tv.own.owntv.mobile.ui.stage.StageLabel
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -81,7 +93,6 @@ private fun RemoteRecordings(onPlayerOpened: () -> Unit, modifier: Modifier = Mo
     var recordings by remember { mutableStateOf<List<DispatcharrApi.ServerRecording>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var failed by remember { mutableStateOf(false) }
-    var completedTab by remember { mutableStateOf(false) }
     var menuFor by remember { mutableStateOf<DispatcharrApi.ServerRecording?>(null) }
 
     LaunchedEffect(client, reload) {
@@ -108,27 +119,10 @@ private fun RemoteRecordings(onPlayerOpened: () -> Unit, modifier: Modifier = Mo
     }
 
     val now = System.currentTimeMillis()
-    val visible = if (completedTab) {
-        recordings.filter { it.isCompleted() }.sortedByDescending { it.startMs }
-    } else {
-        recordings.filter { it.isScheduled(now) || it.isActive(now) }.sortedBy { it.startMs }
-    }
+    val completed = recordings.filter { it.isCompleted() }.sortedByDescending { it.startMs }
+    val scheduled = recordings.filter { it.isScheduled(now) || it.isActive(now) }.sortedBy { it.startMs }
+
     Column(modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            StageButton(
-                onClick = { completedTab = false },
-                text = stringResource(R.string.recording_group_scheduled),
-                icon = MobileIcons.Schedule, small = true,
-            )
-            StageButton(
-                onClick = { completedTab = true },
-                text = stringResource(R.string.recording_group_completed),
-                icon = MobileIcons.PlayArrow, small = true,
-            )
-        }
         StageMenuItem(
             stringResource(R.string.dispatcharr_remote_refresh),
             onClick = { reload++ },
@@ -147,43 +141,42 @@ private fun RemoteRecordings(onPlayerOpened: () -> Unit, modifier: Modifier = Mo
                 stringResource(R.string.dispatcharr_remote_load_failed),
                 modifier = Modifier.padding(16.dp), style = stageText(13f, 500),
             )
-            visible.isEmpty() -> Text(
-                stringResource(if (completedTab) R.string.dispatcharr_remote_empty_completed
-                else R.string.dispatcharr_remote_empty_scheduled),
-                modifier = Modifier.padding(16.dp), style = stageText(13f, 500),
-            )
             else -> LazyColumn(Modifier.fillMaxSize()) {
-                items(visible, key = { it.id }) { rec ->
-                    val active = rec.isActive(System.currentTimeMillis())
-                    StageRow(
-                        onClick = {
-                            if (completedTab && rec.hasFile) play(rec)
-                            else menuFor = rec
-                        },
-                        onLongClick = { menuFor = rec },
-                        current = active,
-                        minHeight = 70.dp,
-                    ) {
-                        Column(Modifier.weight(1f).padding(10.dp)) {
-                            Text(
-                                rec.title, style = stageText(14f, 700),
-                                color = LocalStagePalette.current.text,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
-                                    .format(Date(rec.startMs)),
-                                style = stageText(12f, 500),
-                                color = if (active) LocalStagePalette.current.danger
-                                    else LocalStagePalette.current.muted,
-                            )
-                        }
-                        if (active) Text(
-                            stringResource(R.string.recording_group_now),
-                            style = stageText(12f, 600),
-                            color = LocalStagePalette.current.danger,
-                        )
-                    }
+                item(key = "completed_header") {
+                    StageLabel(
+                        stringResource(R.string.recording_group_completed),
+                        Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 5.dp),
+                    )
+                }
+                if (completed.isEmpty()) item(key = "completed_empty") {
+                    Text(stringResource(R.string.dispatcharr_remote_empty_completed),
+                        style = stageText(12f, 500),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
+                }
+                items(completed, key = { "completed_${it.id}" }) { record ->
+                    RemoteRecordingRow(
+                        record = record,
+                        onClick = { if (record.hasFile) play(record) else menuFor = record },
+                        onLongClick = { menuFor = record },
+                    )
+                }
+                item(key = "scheduled_header") {
+                    StageLabel(
+                        stringResource(R.string.recording_group_scheduled),
+                        Modifier.padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 5.dp),
+                    )
+                }
+                if (scheduled.isEmpty()) item(key = "scheduled_empty") {
+                    Text(stringResource(R.string.dispatcharr_remote_empty_scheduled),
+                        style = stageText(12f, 500),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
+                }
+                items(scheduled, key = { "scheduled_${it.id}" }) { record ->
+                    RemoteRecordingRow(
+                        record = record,
+                        onClick = { menuFor = record },
+                        onLongClick = { menuFor = record },
+                    )
                 }
             }
         }
@@ -219,5 +212,49 @@ private fun RemoteRecordings(onPlayerOpened: () -> Unit, modifier: Modifier = Mo
                 )
             }
         }
+    }
+}
+
+/** Small Dispatcharr programme poster with a clear fallback when EPG artwork is absent. */
+@Composable
+private fun RemoteRecordingRow(
+    record: DispatcharrApi.ServerRecording,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    val active = record.isActive(System.currentTimeMillis())
+    val palette = LocalStagePalette.current
+    StageRow(onClick = onClick, onLongClick = onLongClick, current = active, minHeight = 76.dp) {
+        Box(
+            Modifier.padding(start = 8.dp, end = 9.dp)
+                .width(48.dp).height(68.dp)
+                .clip(RoundedCornerShape(7.dp))
+                .background(palette.cardSolid),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (record.posterUrl != null) {
+                AsyncImage(
+                    model = record.posterUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                StageIcon(MobileIcons.LiveTv, 22.dp, palette.dim)
+            }
+        }
+        Column(Modifier.weight(1f).padding(vertical = 8.dp, horizontal = 4.dp)) {
+            Text(record.title, style = stageText(14f, 700), color = palette.text,
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+                    .format(Date(record.startMs)),
+                style = stageText(12f, 500), color = if (active) palette.danger else palette.muted)
+        }
+        if (active) Text(
+            stringResource(R.string.recording_group_now),
+            style = stageText(12f, 600),
+            color = palette.danger,
+            modifier = Modifier.padding(end = 8.dp),
+        )
     }
 }

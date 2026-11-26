@@ -218,7 +218,7 @@ fun MobileShell(
             .let { items ->
                 if (navMode == SettingsRepository.NavMenuMode.STATIC) items.ordered(navOrder) else items
             }
-            .let { if (useRail) it else it.take(5) }
+            .let { if (useRail) it else it }
     // A detail route ("live/42/false") keeps its tab selected and its tab's title: on a phone the
     // channel you opened is still Live TV, and the bottom bar must not go blank while you watch it.
     val current = destinations.firstOrNull { it.route == currentRoute }
