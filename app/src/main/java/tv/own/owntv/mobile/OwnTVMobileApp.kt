@@ -205,7 +205,10 @@ class OwnTVMobileApp : Application(), androidx.work.Configuration.Provider {
         // A new user starts on Stage with glass on; an existing install keeps its look.
         appScope.launch {
             runCatching {
-                org.koin.core.context.GlobalContext.get().get<tv.own.owntv.core.settings.SettingsRepository>().applyPhoneStageDefaults(
+                val phoneSettings = org.koin.core.context.GlobalContext.get()
+                    .get<tv.own.owntv.core.settings.SettingsRepository>()
+                phoneSettings.applyPhoneVisualDefaults()
+                phoneSettings.applyPhoneStageDefaults(
                     tv.own.owntv.mobile.ui.screens.settings.PHONE_GLASS_DEFAULT_PCT,
                 )
             }

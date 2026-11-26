@@ -555,12 +555,20 @@ class GuideViewModel(
     }
 
     /** Still to come, or already aired on a channel that keeps an archive. */
+    fun isServerDvrConfigured(): Boolean = tuner.isServerDvrConfigured()
+
     fun canRecord(channel: ChannelEntity, programme: EpgProgrammeEntity): Boolean =
-        programme.stopMs > System.currentTimeMillis() || canCatchup(channel, programme)
+        programme.stopMs > System.currentTimeMillis() ||
+            (!isServerDvrConfigured() && canCatchup(channel, programme))
 
     /** Schedule it, or pull it from the archive when it has already been on. */
     fun record(channel: ChannelEntity, programme: EpgProgrammeEntity) {
         viewModelScope.launch {
+            if (isServerDvrConfigured()) {
+                val window = recordings.windowFor(programme.startMs, programme.stopMs)
+                tuner.scheduleRecording(channel, window.first, window.last) {}
+                return@launch
+            }
             val pid = settings.activeProfileId.first().takeIf { it >= 0 } ?: return@launch
             val source = sourceDao.getById(channel.sourceId) ?: return@launch
             if (programme.stopMs <= System.currentTimeMillis()) {

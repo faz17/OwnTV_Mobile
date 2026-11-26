@@ -447,6 +447,10 @@ fun PlayerScreen(
     LaunchedEffect(sheet) { if (sheet != PlayerSheet.CHANNELS) playerCategory = null }
     val recordWatchingEnabled by settings.recordWhatImWatching.collectAsStateWithLifecycle(initialValue = false)
     val playerRecording by tuner.playerRecording.collectAsStateWithLifecycle()
+    val recordingChannelIds by tuner.recordingChannelIds.collectAsStateWithLifecycle()
+    LaunchedEffect(channel?.id, dispatcharrConnection) {
+        channel?.let(tuner::refreshServerRecording)
+    }
     var brightness by remember { mutableFloatStateOf(0.5f) }
     var hud by remember { mutableStateOf<GestureFeedback?>(null) }
     // Which *showing* this is, counted up on every one. Two forward double taps at the same seek step
@@ -879,7 +883,7 @@ fun PlayerScreen(
             } else {
                 null
             },
-            recordingThis = playerRecording != null,
+            recordingThis = playerRecording != null || channel?.id?.let { it in recordingChannelIds } == true,
             matchLine = matchSession?.takeIf { sportsConfig.scoreInInfoBar }?.let { session ->
                 { tv.own.owntv.mobile.ui.screens.sports.MatchScoreLine(sportsPlayback, session.match, sportsConfig.spoilerFree) }
             },
@@ -896,24 +900,30 @@ fun PlayerScreen(
             },
         )
         channel?.takeIf { showSources }?.let { playing ->
-            val api = dispatcharrApi
-            val server = dispatcharrConnection?.origin
-            val remote = if (api != null && server != null &&
-                (tv.own.owntv.core.dispatcharr.DispatcharrChannelUrls.parseForServer(playing.streamUrl, server) != null ||
-                    tv.own.owntv.core.dispatcharr.DispatcharrXtreamChannelUrls.parseForServer(playing.streamUrl, server) != null)
-            ) {
-                MobileDispatcharrSources(
-                    load = { api.sourcesFor(playing.streamUrl) },
-                    onPick = { streamId -> api.switch(playing.streamUrl, streamId) },
+            // Recomposition used to create a fresh remote identity, restarting its
+            // loading coroutine repeatedly and making the Dispatcharr menu flicker.
+            val remote = remember(dispatcharrApi, dispatcharrConnection?.origin, playing.streamUrl) {
+                val api = dispatcharrApi
+                val origin = dispatcharrConnection?.origin
+                if (api == null || origin == null) null else {
+                    val supported =
+                        tv.own.owntv.core.dispatcharr.DispatcharrChannelUrls.parseForServer(playing.streamUrl, origin) != null ||
+                        tv.own.owntv.core.dispatcharr.DispatcharrXtreamChannelUrls.parseForServer(playing.streamUrl, origin) != null
+                    if (supported) MobileDispatcharrSources(
+                        load = { api.sourcesFor(playing.streamUrl) },
+                        onPick = { streamId -> api.switch(playing.streamUrl, streamId) },
+                    ) else MobileDispatcharrSources(unavailable = true)
+                }
+            }
+            androidx.compose.runtime.key(playing.id, playing.streamUrl) {
+                SourcesSheet(
+                    load = { channelVersions.of(playing) },
+                    playingId = playing.id,
+                    onPick = { tuner.switchTo(it) },
+                    onDismiss = { showSources = false },
+                    dispatcharr = remote,
                 )
-            } else null
-            SourcesSheet(
-                load = { channelVersions.of(playing) },
-                playingId = playing.id,
-                onPick = { tuner.switchTo(it) },
-                onDismiss = { showSources = false },
-                dispatcharr = remote,
-            )
+            }
         }
         if (otherChannels) {
             val session = matchSession

@@ -27,4 +27,8 @@
     <string name="dispatcharr_diag_switch">Source switching</string>
     <string name="dispatcharr_diag_http">%1$s — HTTP %2$d</string>
     <string name="dispatcharr_diag_network">%1$s — network or invalid response</string>
+    <string name="dispatcharr_mobile_unsupported">This channel is not using a Dispatcharr proxy or Xtream URL on the configured server. Enable proxy output in Dispatcharr for this playlist.</string>
+    <string name="dispatcharr_mobile_record_unsupported">Server recording requires a Dispatcharr proxy or Xtream channel URL on the configured server.</string>
+    <string name="dispatcharr_mobile_record_failed">Dispatcharr could not create or stop the recording. Check DVR permissions and server availability.</string>
+    <string name="dispatcharr_diag_recording">Server recording</string>
 </resources>

@@ -20,6 +20,7 @@ fun dispatcharrFailureLabel(error: Throwable?): String {
                 DispatcharrApi.ApiStage.STREAMS -> R.string.dispatcharr_diag_streams
                 DispatcharrApi.ApiStage.STATUS -> R.string.dispatcharr_diag_status
                 DispatcharrApi.ApiStage.SWITCH -> R.string.dispatcharr_diag_switch
+                DispatcharrApi.ApiStage.RECORDING -> R.string.dispatcharr_diag_recording
             },
         )
         val code = failure.statusCode

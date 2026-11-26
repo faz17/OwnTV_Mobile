@@ -28,8 +28,9 @@ import tv.own.owntv.mobile.ui.stage.StageSheetHeader
 import tv.own.owntv.mobile.ui.stage.StageTag
 
 class MobileDispatcharrSources(
-    val load: suspend () -> DispatcharrApi.ChannelSources,
-    val onPick: suspend (Int) -> Unit,
+    val load: (suspend () -> DispatcharrApi.ChannelSources)? = null,
+    val onPick: (suspend (Int) -> Unit)? = null,
+    val unavailable: Boolean = false,
 )
 
 /**
@@ -47,7 +48,7 @@ fun SourcesSheet(
 ) {
     val versions by produceState<List<ChannelVersion>?>(null) { value = load() }
     val remote by produceState<Result<DispatcharrApi.ChannelSources>?>(null, dispatcharr) {
-        value = dispatcharr?.let { runCatching { it.load() } }
+        value = dispatcharr?.load?.let { runCatching { it() } }
     }
     var switching by remember { mutableStateOf<Int?>(null) }
     var switchError by remember { mutableStateOf<Throwable?>(null) }
@@ -58,7 +59,7 @@ fun SourcesSheet(
         StageSheetHeader(title = title)
         val list = versions ?: return@MobileBottomSheet
         // Avoid briefly rendering only OwnTV playlist versions before Dispatcharr loads.
-        if (dispatcharr != null && remote == null) {
+        if (dispatcharr?.load != null && remote == null) {
             StageMenuItem(
                 stringResource(R.string.dispatcharr_mobile_title),
                 onClick = {},
@@ -69,8 +70,8 @@ fun SourcesSheet(
             return@MobileBottomSheet
         }
         val remoteStreams = remote?.getOrNull()
-        val remoteIsLoading = dispatcharr != null && remote == null
-        val remoteHasFailed = dispatcharr != null && remote?.isFailure == true
+        val remoteIsLoading = dispatcharr?.load != null && remote == null
+        val remoteHasFailed = dispatcharr?.load != null && remote?.isFailure == true
         LazyColumn(Modifier.heightIn(max = sheetListHeight())) {
             if (dispatcharr != null) {
                 item(key = "dispatcharr_header") {
@@ -85,6 +86,9 @@ fun SourcesSheet(
                         },
                         enabled = false,
                     )
+                }
+                if (dispatcharr.unavailable) item(key = "dispatcharr_unavailable") {
+                    StageMenuItem(stringResource(R.string.dispatcharr_mobile_unsupported), onClick = {}, enabled = false)
                 }
                 if (remoteHasFailed) item(key = "dispatcharr_diagnostic") {
                     StageMenuItem(
@@ -103,7 +107,7 @@ fun SourcesSheet(
                                     switching = source.id
                                     switchError = null
                                     scope.launch {
-                                        val result = runCatching { dispatcharr.onPick(source.id) }
+                                        val result = runCatching { dispatcharr.onPick?.invoke(source.id) ?: error("Unavailable") }
                                         switching = null
                                         if (result.isSuccess) onDismiss()
                                         else switchError = result.exceptionOrNull()

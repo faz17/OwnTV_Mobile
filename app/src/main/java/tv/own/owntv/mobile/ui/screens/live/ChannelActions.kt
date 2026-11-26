@@ -108,6 +108,7 @@ fun ChannelMenu(
     val res = androidx.compose.ui.platform.LocalResources.current
     val recordingChannelIds by tuner.recordingChannelIds.collectAsStateWithLifecycle()
     val isRecording = channel.id in recordingChannelIds
+    LaunchedEffect(channel.id) { tuner.refreshServerRecording(channel) }
 
     if (sheetOpen && multiviewSetting != null) {
         val canMove = vm.contextKeyOf(selected) != null

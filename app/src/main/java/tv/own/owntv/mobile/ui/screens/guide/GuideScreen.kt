@@ -1024,7 +1024,7 @@ internal fun ProgrammeSheet(
                         value = clash?.takeIf { recording == null && upcoming }?.let { stringResource(R.string.recording_clash_with, it) },
                     )
                     // "Every showing" only for a programme still to come — a rule is about the future.
-                    if (upcoming) {
+                    if (upcoming && !vm.isServerDvrConfigured()) {
                         StageMenuItem(
                             stringResource(if (seriesRule != null) R.string.recording_stop_series else R.string.recording_record_series),
                             onClick = { seriesRule?.let { vm.stopSeries(it) } ?: vm.recordSeries(channel, programme); onDismiss() },
