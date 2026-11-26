@@ -41,6 +41,7 @@ import tv.own.owntv.core.nav.MainSection
 import tv.own.owntv.core.settings.SettingsRepository
 import tv.own.owntv.mobile.R
 import tv.own.owntv.mobile.ui.components.MobileBottomSheet
+import tv.own.owntv.mobile.ui.components.SheetScroll
 import tv.own.owntv.mobile.ui.components.MobileIcons
 import tv.own.owntv.mobile.ui.stage.LocalStagePalette
 import tv.own.owntv.mobile.ui.stage.StageChevron
@@ -75,6 +76,7 @@ fun NavigationSheet(vm: SettingsViewModel, onDismiss: () -> Unit) {
     val dynamic = mode == SettingsRepository.NavMenuMode.DYNAMIC
 
     MobileBottomSheet(onDismissRequest = onDismiss, title = title) {
+      SheetScroll {
         StageSheetHeader(
             title = title,
             subtitle = stringResource(R.string.common_nav_settings) + " · " + stringResource(R.string.settings_group_layout),
@@ -128,6 +130,16 @@ fun NavigationSheet(vm: SettingsViewModel, onDismiss: () -> Unit) {
                             vm.edit { setNavMenuHidden(if (shown) hidden + section.name else hidden - section.name) }
                         },
                         onMove = move,
+                        onNudge = {
+                            val current = (editingOrder ?: savedOrder).toMutableList()
+                            val from = current.indexOf(section)
+                            if (from >= 0 && current.size > 1) {
+                                val to = if (from == current.lastIndex) from - 1 else from + 1
+                                current.add(to, current.removeAt(from))
+                                editingOrder = current
+                                vm.edit { setNavMenuOrder(current) }
+                            }
+                        },
                         onDrop = {
                             editingOrder?.let { update -> vm.edit { setNavMenuOrder(update) } }
                         },
@@ -142,6 +154,7 @@ fun NavigationSheet(vm: SettingsViewModel, onDismiss: () -> Unit) {
             role = Role.Switch,
             onClick = { vm.edit { setSheetCounts(!counts) } },
         ) { StageSwitch(counts) }
+      }
     }
 }
 
@@ -174,10 +187,12 @@ private fun NavOrderRow(
     toggleable: Boolean,
     onToggle: () -> Unit,
     onMove: (Int) -> Unit,
+    onNudge: () -> Unit,
     onDrop: () -> Unit,
 ) {
     val palette = LocalStagePalette.current
     val onMoveNow by rememberUpdatedState(onMove)
+    val onNudgeNow by rememberUpdatedState(onNudge)
     val onDropNow by rememberUpdatedState(onDrop)
     val dragLabel = stringResource(R.string.dispatcharr_nav_drag_handle, title)
     val threshold = with(LocalDensity.current) { 48.dp.toPx() }
@@ -195,6 +210,7 @@ private fun NavOrderRow(
             Modifier
                 .size(48.dp)
                 .semantics { contentDescription = dragLabel }
+                .clickable(onClick = { onNudgeNow() })
                 .pointerInput(title) {
                     var travelled = 0f
                     detectDragGesturesAfterLongPress(
