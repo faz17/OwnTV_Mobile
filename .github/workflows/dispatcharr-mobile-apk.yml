@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: mobile-dispatcharr-${{ github.ref }}
@@ -141,6 +142,26 @@ jobs:
           path: OwnTV_Mobile/app/build/outputs/apk/standard/debug/*.apk
           if-no-files-found: error
           retention-days: 14
+
+      # Expose the first compiler failure as a commit status. GitHub's Actions
+      # logs are not always accessible through repository API clients.
+      - name: Publish sanitized build error
+        if: ${{ failure() && github.event_name == 'push' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ERROR=""
+          for file in OwnTV_Core/core-test.log OwnTV_Mobile/mobile-build.log; do
+            if [ -f "$file" ]; then
+              ERROR=$(grep -E -m 1 '^e: |^error: |^FAILURE:|^> Task .*FAILED|^Execution failed for task|^.*tests? FAILED' "$file" || true)
+              if [ -n "$ERROR" ]; then break; fi
+            fi
+          done
+          ERROR="${ERROR:-Build failed (see Actions report)}"
+          ERROR="${ERROR:0:130}"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+            -f state=failure -f context=diagnostics/owntv-mobile-build -f description="$ERROR"
 
       - name: Upload build reports on failure
         if: failure()
