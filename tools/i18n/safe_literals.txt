@@ -1028,3 +1028,7 @@
 1	technical	app/src/main/java/tv/own/owntv/mobile/ui/stage/StageRows.kt	•
 2	empty	app/src/main/java/tv/own/owntv/mobile/ui/theme/MobileColors.kt	\0
 4	empty	app/src/main/java/tv/own/owntv/mobile/ui/theme/MobileTheme.kt	\0
+1	technical	app/src/main/java/tv/own/owntv/mobile/ui/screens/recordings/DispatcharrRecordingsScreen.kt	completed_header
+1	technical	app/src/main/java/tv/own/owntv/mobile/ui/screens/recordings/DispatcharrRecordingsScreen.kt	completed_empty
+1	technical	app/src/main/java/tv/own/owntv/mobile/ui/screens/recordings/DispatcharrRecordingsScreen.kt	scheduled_header
+1	technical	app/src/main/java/tv/own/owntv/mobile/ui/screens/recordings/DispatcharrRecordingsScreen.kt	scheduled_empty
