@@ -148,7 +148,7 @@ private fun RemoteRecordings(onPlayerOpened: () -> Unit, modifier: Modifier = Mo
                         style = stageText(12f, 500),
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
                 }
-                items(completed, key = { "completed_${it.id}" }) { record ->
+                items(completed, key = { it.id }) { record ->
                     RemoteRecordingRow(
                         record = record,
                         onClick = { if (record.hasFile) play(record) else menuFor = record },
@@ -166,7 +166,7 @@ private fun RemoteRecordings(onPlayerOpened: () -> Unit, modifier: Modifier = Mo
                         style = stageText(12f, 500),
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
                 }
-                items(scheduled, key = { "scheduled_${it.id}" }) { record ->
+                items(scheduled, key = { it.id }) { record ->
                     RemoteRecordingRow(
                         record = record,
                         onClick = { menuFor = record },
