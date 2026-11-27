@@ -169,6 +169,10 @@ jobs:
             done
           fi
           ERROR="${ERROR:-Build failed (see Actions report)}"
+          # Strip long CI workspace prefixes so the file, line and diagnostic fit.
+          if [[ "$ERROR" == "e: file://"* ]]; then
+            ERROR="e: ${ERROR##*/}"
+          fi
           ERROR="${ERROR:0:130}"
           gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
             -f state=failure -f context=diagnostics/owntv-mobile-build -f description="$ERROR"
