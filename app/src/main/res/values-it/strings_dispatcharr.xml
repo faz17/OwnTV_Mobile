@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dispatcharr_nav_reorder_title">Ordine di navigazione · Trascina i sei puntini</string>
+    <string name="dispatcharr_nav_drag_handle">Sposta %1$s nel menu di navigazione</string>
+    <string name="dispatcharr_recordings_view_list">Lista</string>
+    <string name="dispatcharr_recordings_view_grid">Griglia</string>
+</resources>

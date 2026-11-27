@@ -11,6 +11,7 @@ import tv.own.owntv.mobile.ui.components.ChannelLogoImage
 import tv.own.owntv.mobile.ui.stage.LocalStagePalette
 import tv.own.owntv.mobile.ui.stage.StageIcon
 import tv.own.owntv.mobile.ui.stage.StageLabel
+import tv.own.owntv.mobile.ui.stage.StagePoster
 import tv.own.owntv.mobile.ui.stage.StageMenuItem
 import tv.own.owntv.mobile.ui.stage.StageRow
 import tv.own.owntv.mobile.ui.stage.StageSettingRow
@@ -19,11 +20,17 @@ import tv.own.owntv.mobile.ui.stage.stageText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +56,8 @@ import tv.own.owntv.mobile.ui.components.MobileBottomSheet
 import tv.own.owntv.mobile.ui.components.MobileIcons
 import tv.own.owntv.mobile.ui.screens.settings.StageConfirmSheet
 
+private const val SERIES_HEADER_KEY = "header_series"
+
 /**
  * Live TV recorded onto this phone: the list, grouped under its status headings — what is happening
  * now, what will happen, what can be watched, and what went wrong. **Missed and failed share the last
@@ -68,6 +77,7 @@ fun RecordingsScreen(
     val seriesRules by vm.seriesRules.collectAsStateWithLifecycle()
     val missing by vm.missingFiles.collectAsStateWithLifecycle()
     val playing by vm.playing.collectAsStateWithLifecycle()
+    val (gridView, setGridView) = rememberRecordingGridPreference()
 
     var menuFor by remember { mutableStateOf<RecordingEntity?>(null) }
     var seriesMenuFor by remember { mutableStateOf<SeriesRecording?>(null) }
@@ -99,6 +109,9 @@ fun RecordingsScreen(
         .filter { it.second.isNotEmpty() }
 
     Column(modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.End) {
+            RecordingsViewSwitch(grid = gridView, onChange = setGridView)
+        }
         if (rows.isEmpty() && seriesRules.isEmpty()) {
             // The Downloads list's own empty line (Stage), under the tabs rather than centred on the page.
             Text(
@@ -107,12 +120,52 @@ fun RecordingsScreen(
                 color = LocalStagePalette.current.muted,
                 modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 18.dp),
             )
+        } else if (gridView) {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(145.dp),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                if (seriesRules.isNotEmpty()) {
+                    item(key = SERIES_HEADER_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                        StageLabel(stringResource(R.string.recording_group_series))
+                    }
+                    gridItems(seriesRules, key = { it.rule.id.toString() }, span = { GridItemSpan(maxLineSpan) }) { series ->
+                        SeriesRuleRow(
+                            series = series,
+                            next = rows.filter { it.ruleId == series.rule.id && it.status == RecordingStatus.SCHEDULED }
+                                .minByOrNull { it.startMs },
+                            onClick = { seriesMenuFor = series },
+                        )
+                    }
+                }
+                sections.forEach { (section, recordingsInSection) ->
+                    item(key = section.name, span = { GridItemSpan(maxLineSpan) }) {
+                        StageLabel(stringResource(section.labelRes))
+                    }
+                    gridItems(recordingsInSection, key = { it.id }) { recording ->
+                        StagePoster(
+                            imageUrl = recording.channelIconUrl,
+                            title = recording.title,
+                            subtitle = recording.channelName,
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                if (recording.status == RecordingStatus.COMPLETED && recording.filePath !in missing) vm.play(recording)
+                                else menuFor = recording
+                            },
+                            onLongClick = { menuFor = recording },
+                        )
+                    }
+                }
+            }
         } else {
             LazyColumn(Modifier.fillMaxSize()) {
                 // First, the programmes set to record every showing: one that is on every day fills the
                 // drive with no end, and this is where it is stopped without finding a showing in the guide.
                 if (seriesRules.isNotEmpty()) {
-                    item(key = "header_series") {
+                    item(key = SERIES_HEADER_KEY) {
                         StageLabel(stringResource(R.string.recording_group_series), Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp))
                     }
                     items(seriesRules, key = { "series_${it.rule.id}" }) { s ->

@@ -1,6 +1,9 @@
 package tv.own.owntv.mobile.ui.screens.recordings
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
@@ -9,6 +12,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
+import tv.own.owntv.mobile.ui.stage.StagePoster
+import tv.own.owntv.mobile.ui.stage.StageTool
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import tv.own.owntv.mobile.ui.stage.StageIcon
@@ -16,6 +21,10 @@ import tv.own.owntv.mobile.ui.stage.StageLabel
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +57,11 @@ import tv.own.owntv.mobile.ui.stage.stageText
 import java.text.DateFormat
 import java.util.Date
 import java.util.concurrent.TimeUnit
+
+private const val COMPLETED_HEADER_KEY = "completed_header"
+private const val COMPLETED_EMPTY_KEY = "completed_empty"
+private const val SCHEDULED_HEADER_KEY = "scheduled_header"
+private const val SCHEDULED_EMPTY_KEY = "scheduled_empty"
 
 /**
  * Local library and remote DVR have separate ownership and storage. Never
@@ -88,6 +102,7 @@ private fun RemoteRecordings(onPlayerOpened: () -> Unit, modifier: Modifier = Mo
     var recordings by remember { mutableStateOf<List<DispatcharrApi.ServerRecording>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var failed by remember { mutableStateOf(false) }
+    val (gridView, setGridView) = rememberRecordingGridPreference()
     var menuFor by remember { mutableStateOf<DispatcharrApi.ServerRecording?>(null) }
 
     LaunchedEffect(client, reload) {
@@ -118,11 +133,18 @@ private fun RemoteRecordings(onPlayerOpened: () -> Unit, modifier: Modifier = Mo
     val scheduled = recordings.filter { it.isScheduled(now) || it.isActive(now) }.sortedBy { it.startMs }
 
     Column(modifier.fillMaxSize()) {
-        StageMenuItem(
-            stringResource(R.string.dispatcharr_remote_refresh),
-            onClick = { reload++ },
-            icon = MobileIcons.Refresh,
-        )
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RecordingsViewSwitch(grid = gridView, onChange = setGridView)
+            StageTool(
+                onClick = { reload++ },
+                icon = MobileIcons.Refresh,
+                contentDescription = stringResource(R.string.dispatcharr_remote_refresh),
+            )
+        }
         when {
             client == null -> Text(
                 stringResource(R.string.dispatcharr_remote_unconfigured),
@@ -136,17 +158,67 @@ private fun RemoteRecordings(onPlayerOpened: () -> Unit, modifier: Modifier = Mo
                 stringResource(R.string.dispatcharr_remote_load_failed),
                 modifier = Modifier.padding(16.dp), style = stageText(13f, 500),
             )
+            gridView -> LazyVerticalGrid(
+                columns = GridCells.Adaptive(145.dp),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                item(key = COMPLETED_HEADER_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                    StageLabel(stringResource(R.string.recording_group_completed))
+                }
+                if (completed.isEmpty()) item(key = COMPLETED_EMPTY_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                    Text(
+                        stringResource(R.string.dispatcharr_remote_empty_completed),
+                        style = stageText(12f, 500), modifier = Modifier.padding(vertical = 8.dp),
+                    )
+                }
+                gridItems(completed, key = { it.id }) { record ->
+                    StagePoster(
+                        imageUrl = record.posterUrl,
+                        title = record.title,
+                        subtitle = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+                            .format(Date(record.startMs)),
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { if (record.hasFile) play(record) else menuFor = record },
+                        onLongClick = { menuFor = record },
+                    )
+                }
+                item(key = SCHEDULED_HEADER_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                    StageLabel(stringResource(R.string.recording_group_scheduled))
+                }
+                if (scheduled.isEmpty()) item(key = SCHEDULED_EMPTY_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                    Text(
+                        stringResource(R.string.dispatcharr_remote_empty_scheduled),
+                        style = stageText(12f, 500), modifier = Modifier.padding(vertical = 8.dp),
+                    )
+                }
+                gridItems(scheduled, key = { it.id }) { record ->
+                    StagePoster(
+                        imageUrl = record.posterUrl,
+                        title = record.title,
+                        subtitle = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+                            .format(Date(record.startMs)),
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { menuFor = record },
+                        onLongClick = { menuFor = record },
+                    )
+                }
+            }
             else -> LazyColumn(Modifier.fillMaxSize()) {
-                item(key = "completed_header") {
+                item(key = COMPLETED_HEADER_KEY) {
                     StageLabel(
                         stringResource(R.string.recording_group_completed),
                         Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 5.dp),
                     )
                 }
-                if (completed.isEmpty()) item(key = "completed_empty") {
-                    Text(stringResource(R.string.dispatcharr_remote_empty_completed),
+                if (completed.isEmpty()) item(key = COMPLETED_EMPTY_KEY) {
+                    Text(
+                        stringResource(R.string.dispatcharr_remote_empty_completed),
                         style = stageText(12f, 500),
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    )
                 }
                 items(completed, key = { it.id }) { record ->
                     RemoteRecordingRow(
@@ -155,16 +227,18 @@ private fun RemoteRecordings(onPlayerOpened: () -> Unit, modifier: Modifier = Mo
                         onLongClick = { menuFor = record },
                     )
                 }
-                item(key = "scheduled_header") {
+                item(key = SCHEDULED_HEADER_KEY) {
                     StageLabel(
                         stringResource(R.string.recording_group_scheduled),
                         Modifier.padding(start = 12.dp, end = 12.dp, top = 14.dp, bottom = 5.dp),
                     )
                 }
-                if (scheduled.isEmpty()) item(key = "scheduled_empty") {
-                    Text(stringResource(R.string.dispatcharr_remote_empty_scheduled),
+                if (scheduled.isEmpty()) item(key = SCHEDULED_EMPTY_KEY) {
+                    Text(
+                        stringResource(R.string.dispatcharr_remote_empty_scheduled),
                         style = stageText(12f, 500),
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    )
                 }
                 items(scheduled, key = { it.id }) { record ->
                     RemoteRecordingRow(

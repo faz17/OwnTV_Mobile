@@ -385,7 +385,14 @@ fun GuideScreen(
                                 sheetFor = ch to p
                             } else {
                                 picked = ch to p
-                                preview(ch)
+                                // Selecting a future EPG slot is for scheduling, not
+                                // playback. Preview only a programme currently on air.
+                                if (p.startMs <= nowMs && nowMs < p.stopMs) {
+                                    preview(ch)
+                                } else if (tunedHere) {
+                                    tuner.stop()
+                                    tunedHere = false
+                                }
                             }
                         },
                         onHold = { ch, p -> sheetFor = ch to p },

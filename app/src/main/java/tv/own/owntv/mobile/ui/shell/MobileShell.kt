@@ -818,6 +818,18 @@ private fun NavHostController.onNavClick(
     sportsPlayback: SportsPlayback,
 ) {
     when {
+        // Home is the graph's root: pop to the real root instead of restoring a
+        // saved tab stack (which can resurrect the More page over Home).
+        destination == MobileDestination.HOME -> {
+            if (currentDestination?.route == MobileDestination.HOME.route) {
+                shell.requestScrollToTop(destination.route)
+            } else if (!popBackStack(MobileDestination.HOME.route, inclusive = false)) {
+                navigate(MobileDestination.HOME.route) {
+                    popUpTo(graph.startDestinationId) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+        }
         // More is a hub, not a content tab. Return to the existing More entry when
         // opening Recordings or Settings from it; otherwise open it afresh.
         // Do not restore a saved tab stack, which can reopen the child page instead.

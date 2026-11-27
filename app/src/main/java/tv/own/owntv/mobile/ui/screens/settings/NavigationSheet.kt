@@ -2,6 +2,10 @@ package tv.own.owntv.mobile.ui.screens.settings
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalDensity
@@ -32,6 +37,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -106,11 +114,9 @@ fun NavigationSheet(vm: SettingsViewModel, onDismiss: () -> Unit) {
         ) { StageRowValue(stringResource(if (dynamic) R.string.settings_dynamic else R.string.settings_static), StageChevron.DOWN) }
         if (!dynamic) {
         StageLabel(stringResource(R.string.dispatcharr_nav_reorder_title), Modifier.padding(start = 12.dp, top = 8.dp, bottom = 4.dp))
-        // Both modes share the order. Dynamic hides unavailable sections automatically,
-        // Static shows switches. Search and More remain pinned outside this list.
+        // Only Static can be ordered manually. Dynamic keeps the original automatic order.
         Column(Modifier.fillMaxWidth()) {
             ordered.forEach { section ->
-                val index = ordered.indexOf(section)
                 val shown = section.name !in hidden
                 val toggleable = !dynamic && section != MainSection.HOME
                 val move: (Int) -> Unit = { direction ->
@@ -179,8 +185,8 @@ private fun ChoiceButton(text: String, on: Boolean, modifier: Modifier, onClick:
 }
 
 /**
- * Classic six-square drag grip. Drag the grip immediately (no long press) and
- * move up or down; the new order is persisted on finger release.
+ * Drag the grip immediately to lift and move a navigation card. The new order
+ * is persisted only on release. A tap on the grip nudges by one place.
  */
 @Composable
 private fun NavOrderRow(
@@ -197,8 +203,46 @@ private fun NavOrderRow(
     val onNudgeNow by rememberUpdatedState(onNudge)
     val onDropNow by rememberUpdatedState(onDrop)
     val dragLabel = stringResource(R.string.dispatcharr_nav_drag_handle, title)
-    val threshold = with(LocalDensity.current) { 32.dp.toPx() }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    val threshold = with(LocalDensity.current) { 52.dp.toPx() }
+    var dragging by remember(title) { mutableStateOf(false) }
+    var travelled by remember(title) { mutableFloatStateOf(0f) }
+    val lift by animateFloatAsState(
+        targetValue = if (dragging) 1.03f else 1f,
+        animationSpec = tween(160),
+        label = title,
+    )
+    val elevation by animateDpAsState(
+        targetValue = if (dragging) 12.dp else 0.dp,
+        animationSpec = tween(160),
+        label = title,
+    )
+    val offsetY by animateFloatAsState(
+        targetValue = if (dragging) travelled else 0f,
+        animationSpec = tween(90),
+        label = title,
+    )
+    val shape = RoundedCornerShape(12.dp)
+    val accent = stageAccent.accent
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+            .zIndex(if (dragging) 1f else 0f)
+            .graphicsLayer {
+                scaleX = lift
+                scaleY = lift
+                translationY = offsetY
+            }
+            .shadow(elevation, shape)
+            .clip(shape)
+            .background(if (dragging) accent.copy(alpha = 0.20f) else palette.controlFill)
+            .border(
+                1.dp,
+                if (dragging) accent.copy(alpha = 0.85f) else palette.muted.copy(alpha = 0.12f),
+                shape,
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         StageSettingRow(
             title = title,
             modifier = Modifier.weight(1f),
@@ -214,9 +258,11 @@ private fun NavOrderRow(
                 .semantics { contentDescription = dragLabel }
                 .clickable(onClick = { onNudgeNow() })
                 .pointerInput(title) {
-                    var travelled = 0f
                     detectDragGestures(
-                        onDragStart = { travelled = 0f },
+                        onDragStart = {
+                            travelled = 0f
+                            dragging = true
+                        },
                         onDrag = { change, delta ->
                             change.consume()
                             travelled += delta.y
@@ -225,8 +271,16 @@ private fun NavOrderRow(
                                 travelled -= if (travelled > 0) threshold else -threshold
                             }
                         },
-                        onDragEnd = { onDropNow() },
-                        onDragCancel = { onDropNow() },
+                        onDragEnd = {
+                            dragging = false
+                            travelled = 0f
+                            onDropNow()
+                        },
+                        onDragCancel = {
+                            dragging = false
+                            travelled = 0f
+                            onDropNow()
+                        },
                     )
                 },
             contentAlignment = Alignment.Center,

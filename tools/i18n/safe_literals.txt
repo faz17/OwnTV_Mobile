@@ -1032,3 +1032,5 @@
 1	technical	app/src/main/java/tv/own/owntv/mobile/ui/screens/recordings/DispatcharrRecordingsScreen.kt	completed_empty
 1	technical	app/src/main/java/tv/own/owntv/mobile/ui/screens/recordings/DispatcharrRecordingsScreen.kt	scheduled_header
 1	technical	app/src/main/java/tv/own/owntv/mobile/ui/screens/recordings/DispatcharrRecordingsScreen.kt	scheduled_empty
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/ui/screens/recordings/RecordingsViewLayout.kt	owntv_recordings_view
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/ui/screens/recordings/RecordingsViewLayout.kt	grid_view
