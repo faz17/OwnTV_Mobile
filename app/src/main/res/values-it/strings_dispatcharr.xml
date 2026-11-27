@@ -1,7 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="dispatcharr_mobile_description">Cambia la sorgente di un canale in diretta su Dispatcharr senza cambiare canale. Inserisci l’indirizzo HTTPS del server e una chiave API amministratore. La chiave è cifrata su questo dispositivo.</string>
+    <string name="dispatcharr_mobile_url">Indirizzo HTTPS di Dispatcharr</string>
+    <string name="dispatcharr_mobile_api_key">Chiave API amministratore</string>
+    <string name="dispatcharr_mobile_save">Salva connessione</string>
+    <string name="dispatcharr_mobile_remove">Rimuovi connessione</string>
+    <string name="dispatcharr_mobile_invalid">Inserisci un indirizzo HTTPS valido e una chiave API</string>
+    <string name="dispatcharr_mobile_saved">Salvato</string>
+    <string name="dispatcharr_mobile_configured">Configurato</string>
+    <string name="dispatcharr_mobile_loading">Caricamento sorgenti…</string>
+    <string name="dispatcharr_mobile_load_failed">Impossibile caricare le sorgenti</string>
+    <string name="dispatcharr_mobile_switching">Cambio sorgente…</string>
+    <string name="dispatcharr_mobile_active">Attiva</string>
+    <string name="dispatcharr_mobile_switch_failed">Impossibile cambiare sorgente</string>
+    <string name="dispatcharr_mobile_playlist_versions">Altre versioni delle playlist OwnTV</string>
+    <string name="dispatcharr_mobile_test">Verifica la connessione API salvata</string>
+    <string name="dispatcharr_mobile_testing">Verifica in corso…</string>
+    <string name="dispatcharr_mobile_test_success">Connessione API riuscita</string>
+    <string name="dispatcharr_mobile_test_failed">Connessione API non riuscita</string>
+    <string name="dispatcharr_diag_auth">Autenticazione</string>
+    <string name="dispatcharr_diag_channel">Ricerca canale</string>
+    <string name="dispatcharr_diag_streams">Flussi assegnati</string>
+    <string name="dispatcharr_diag_status">Stato attuale del flusso</string>
+    <string name="dispatcharr_diag_switch">Cambio sorgente</string>
+    <string name="dispatcharr_diag_http">%1$s — HTTP %2$d</string>
+    <string name="dispatcharr_diag_network">%1$s — errore di rete o risposta non valida</string>
+    <string name="dispatcharr_mobile_unsupported">Questo canale non utilizza un proxy Dispatcharr né un URL Xtream sul server configurato. Abilita il proxy in Dispatcharr per questa playlist.</string>
+    <string name="dispatcharr_mobile_record_unsupported">La registrazione sul server richiede un canale con proxy Dispatcharr o URL Xtream sul server configurato.</string>
+    <string name="dispatcharr_mobile_record_failed">Dispatcharr non è riuscito ad avviare o interrompere la registrazione. Controlla i permessi DVR e la disponibilità del server.</string>
+    <string name="dispatcharr_diag_recording">Registrazione sul server</string>
     <string name="dispatcharr_nav_reorder_title">Ordine di navigazione · Trascina i sei puntini</string>
     <string name="dispatcharr_nav_drag_handle">Sposta %1$s nel menu di navigazione</string>
+    <string name="dispatcharr_rec_backend_title">Destinazione registrazioni</string>
+    <string name="dispatcharr_rec_backend_description">Scegli dove salvare le nuove registrazioni. Dispatcharr registra sul server anche quando il telefono è spento.</string>
+    <string name="dispatcharr_rec_backend_auto">Automatica (comportamento attuale)</string>
+    <string name="dispatcharr_rec_backend_local">OwnTV · su questo dispositivo</string>
+    <string name="dispatcharr_rec_backend_server">Dispatcharr · sul server</string>
+    <string name="dispatcharr_remote_unconfigured">Configura la connessione API Dispatcharr nelle Impostazioni per visualizzare e riprodurre le registrazioni del server.</string>
+    <string name="dispatcharr_remote_load_failed">Impossibile caricare le registrazioni Dispatcharr. Controlla la connessione e i permessi DVR.</string>
+    <string name="dispatcharr_remote_refresh">Aggiorna registrazioni</string>
+    <string name="dispatcharr_remote_empty_scheduled">Nessuna registrazione programmata</string>
+    <string name="dispatcharr_remote_empty_completed">Nessuna registrazione completata</string>
     <string name="dispatcharr_recordings_view_list">Lista</string>
     <string name="dispatcharr_recordings_view_grid">Griglia</string>
 </resources>
