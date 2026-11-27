@@ -159,8 +159,8 @@ jobs:
             # not Gradle's generic "FAILURE: Build completed with N failures" header.
             mapfile -t DIAGNOSTICS < <(
               awk '
-                /^\\* What went wrong:/ {capture=1; next}
-                /^\\* Try:/ {capture=0}
+                index($0, "* What went wrong:") == 1 {capture=1; next}
+                index($0, "* Try:") == 1 {capture=0}
                 capture && NF {print}
               ' lint-build.log | head -n 15
             )
