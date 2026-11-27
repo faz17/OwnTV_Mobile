@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: write   # required so tag builds can create a Release
+  statuses: write   # publish first Lint diagnostic on the PR commit
 
 # Core (tv.own.owntv:core, :player-core) and the mpv engine (tv.own.owntv:libmpv) resolve from OwnTV's
 # public Maven repository, https://ahxn00.github.io/OwnTV_Core/maven — no token, so fork pull requests
@@ -134,9 +135,35 @@ jobs:
       - name: Lint
         if: always()   # report both verdicts in one run instead of one failure at a time
         run: |
+          set -o pipefail
           CORE_ARGS=()
           if [ -n "${OWNTV_CORE_PATH:-}" ]; then CORE_ARGS+=("-Powntv.corePath=$OWNTV_CORE_PATH"); fi
-          ./gradlew lintStandardDebug --stacktrace "${CORE_ARGS[@]}"
+          ./gradlew lintStandardDebug --stacktrace "${CORE_ARGS[@]}" 2>&1 | tee lint-build.log
+
+      # Surface the actual first Lint issue instead of hiding it in a ZIP artifact.
+      # The existing failed check remains authoritative: reporting never masks failure.
+      - name: Publish first Lint diagnostic
+        if: ${{ failure() && github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          REPORT=$(find app/build/reports -maxdepth 2 -name 'lint-results-*.txt' -type f -print -quit 2>/dev/null || true)
+          DIAG=""
+          if [ -n "$REPORT" ]; then
+            DIAG=$(grep -E -m 1 ':[0-9]+: (Error|Warning):|:[0-9]+:[0-9]+: (Error|Warning):' "$REPORT" || true)
+          fi
+          if [ -z "$DIAG" ] && [ -f lint-build.log ]; then
+            DIAG=$(grep -E -m 1 '^e: |^error: |:[0-9]+: (Error|Warning):|^[[:space:]]*> Task .* FAILED' lint-build.log || true)
+          fi
+          DIAG="${DIAG:-Lint failed: check Actions report}"
+          # Annotations have long workspace paths; keep the useful filename and message.
+          DIAG="${DIAG##*/}"
+          DIAG="${DIAG:0:130}"
+          echo "First Lint diagnostic: $DIAG"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$PR_HEAD_SHA" \
+            -f state=failure -f context=diagnostics/owntv-mobile-lint -f description="$DIAG"
 
       - name: Upload test and lint reports
         if: always()   # the reports matter most when the step above failed
