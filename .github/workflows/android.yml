@@ -17,6 +17,7 @@ on:
 permissions:
   contents: write   # required so tag builds can create a Release
   statuses: write   # publish first Lint diagnostic on the PR commit
+  issues: write     # update one PR comment listing all source errors
 
 # Core (tv.own.owntv:core, :player-core) and the mpv engine (tv.own.owntv:libmpv) resolve from OwnTV's
 # public Maven repository, https://ahxn00.github.io/OwnTV_Core/maven — no token, so fork pull requests
@@ -140,30 +141,52 @@ jobs:
           if [ -n "${OWNTV_CORE_PATH:-}" ]; then CORE_ARGS+=("-Powntv.corePath=$OWNTV_CORE_PATH"); fi
           ./gradlew lintStandardDebug --stacktrace "${CORE_ARGS[@]}" 2>&1 | tee lint-build.log
 
-      # Surface the actual first Lint issue instead of hiding it in a ZIP artifact.
-      # The existing failed check remains authoritative: reporting never masks failure.
-      - name: Publish first Lint diagnostic
+      # Publish actionable Lint failures rather than unrelated Gradle upgrade warnings.
+      # Update one PR comment in place to keep repeated CI runs readable.
+      - name: Publish Android Lint error report
         if: ${{ failure() && github.event_name == 'pull_request' }}
         env:
           GH_TOKEN: ${{ github.token }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           REPORT=$(find app/build/reports -maxdepth 2 -name 'lint-results-*.txt' -type f -print -quit 2>/dev/null || true)
-          DIAG=""
+          DIAGNOSTICS=()
           if [ -n "$REPORT" ]; then
-            DIAG=$(grep -E -m 1 ':[0-9]+: (Error|Warning):|:[0-9]+:[0-9]+: (Error|Warning):' "$REPORT" || true)
+            mapfile -t DIAGNOSTICS < <(grep -E ':[0-9]+(:[0-9]+)?: (Error|Fatal):' "$REPORT" | head -n 25 || true)
           fi
-          if [ -z "$DIAG" ] && [ -f lint-build.log ]; then
-            DIAG=$(grep -E -m 1 '^e: |^error: |:[0-9]+: (Error|Warning):|^[[:space:]]*> Task .* FAILED' lint-build.log || true)
+          if [ "${#DIAGNOSTICS[@]}" -eq 0 ] && [ -f lint-build.log ]; then
+            mapfile -t DIAGNOSTICS < <(grep -E '^e: |^error: |:[0-9]+(:[0-9]+)?: (Error|Fatal):|^FAILURE:' lint-build.log | head -n 25 || true)
           fi
-          DIAG="${DIAG:-Lint failed: check Actions report}"
-          # Annotations have long workspace paths; keep the useful filename and message.
-          DIAG="${DIAG##*/}"
-          DIAG="${DIAG:0:130}"
-          echo "First Lint diagnostic: $DIAG"
+          if [ "${#DIAGNOSTICS[@]}" -eq 0 ]; then
+            DIAGNOSTICS=("Lint failed, no source-level diagnostic in the report")
+          fi
+          FIRST="${DIAGNOSTICS[0]}"
+          FIRST="${FIRST##*/}"
+          FIRST="${FIRST:0:130}"
+          echo "First real error: $FIRST"
           gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$PR_HEAD_SHA" \
-            -f state=failure -f context=diagnostics/owntv-mobile-lint -f description="$DIAG"
+            -f state=failure -f context=diagnostics/owntv-mobile-lint -f description="$FIRST"
+
+          MARKER='<!-- owntv-mobile-lint-diagnostics -->'
+          BODY="$MARKER"
+          BODY+=$'\\n**Android Lint: detected errors (first 25):**\\n\\n'
+          BODY+=$'\\x60\\x60\\x60text\\n'
+          for LINE in "${DIAGNOSTICS[@]}"; do
+            # Keep the source location and lint ID; remove any runner directory prefix.
+            LINE="${LINE##*/}"
+            BODY+="$LINE"
+            BODY+=$'\\n'
+          done
+          BODY+=$'\\x60\\x60\\x60'
+          EXISTING=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" \
+            --jq '.[] | select(.body | startswith("<!-- owntv-mobile-lint-diagnostics -->")) | .id' | head -n 1 || true)
+          if [ -n "$EXISTING" ]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$EXISTING" -f body="$BODY" > /dev/null
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$BODY" > /dev/null
+          fi
 
       - name: Upload test and lint reports
         if: always()   # the reports matter most when the step above failed
