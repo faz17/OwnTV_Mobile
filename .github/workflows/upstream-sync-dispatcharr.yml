@@ -1,0 +1,125 @@
+name: Keep official OwnTV changes in the customized fork
+
+# GitHub runs scheduled workflows only from the default branch. This file
+# intentionally lives on main; feature/dispatcharr-source-switch stays independent.
+on:
+  schedule:
+    - cron: '13 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: upstream-sync-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - name: Checkout customized branch with full history
+        uses: actions/checkout@v4
+        with:
+          ref: feature/dispatcharr-source-switch
+          fetch-depth: 0
+
+      - name: Merge upstream source locally without touching published branches
+        id: merge
+        run: |
+          set -euo pipefail
+          git config user.name "faz17 upstream sync"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/ahXN00/OwnTV_Mobile.git
+          git fetch --no-tags upstream main
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Customized branch already includes official upstream main."
+            exit 0
+          fi
+          # Never resolve conflicting edits by taking the official version. This
+          # preserves all Dispatcharr-specific code and requires explicit review.
+          if ! git merge --no-ff --no-edit upstream/main; then
+            git diff --name-only --diff-filter=U > /tmp/owntv-upstream-conflicts || true
+            echo "Merge conflict: changes were not published."
+            git merge --abort || true
+            exit 1
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+
+      - name: Checkout customized Core for compatibility tests
+        if: steps.merge.outputs.changed == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: faz17/OwnTV_Core
+          ref: feature/dispatcharr-source-switch
+          path: OwnTV_Core
+          persist-credentials: false
+
+      - name: Set up Java
+        if: steps.merge.outputs.changed == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Android SDK
+        if: steps.merge.outputs.changed == 'true'
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Set up Gradle
+        if: steps.merge.outputs.changed == 'true'
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Verify the customized app against the merged upstream
+        if: steps.merge.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          python3 tools/i18n/check_hardcoded_strings.py verify --bootstrap
+          chmod +x gradlew
+          ./gradlew :app:testStandardDebugUnitTest :app:lintStandardDebug :app:assembleStandardDebug "-Powntv.corePath=$GITHUB_WORKSPACE/OwnTV_Core" --stacktrace --no-daemon
+
+      - name: Publish only after all compatibility checks pass
+        if: steps.merge.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          # Push the fully tested merge without force: upstream cannot overwrite
+          # a concurrent customization commit.
+          git push origin HEAD:refs/heads/feature/dispatcharr-source-switch
+          # Keep the plain fork main aligned with upstream as well. Its automation
+          # workflow is retained in a normal Git merge, never deleted or forced.
+          git fetch origin main
+          git checkout -B main origin/main
+          git merge --no-ff --no-edit upstream/main
+          git push origin HEAD:refs/heads/main
+          echo "Merged, tested and published upstream changes." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report blocked upstream integrations
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TITLE="Upstream merge requires attention: OwnTV_Mobile"
+          if ! gh issue list --repo "$GITHUB_REPOSITORY" --state open --json title --jq '.[].title' |
+            grep -Fqx "$TITLE"; then
+            {
+              echo "Automatic upstream synchronization did not pass."
+              echo
+              echo "Existing Dispatcharr changes were left untouched."
+              echo "Review the failing tests or conflicts before merging upstream."
+              echo
+              if [ -s /tmp/owntv-upstream-conflicts ]; then
+                echo "Files with conflicts:"
+                cat /tmp/owntv-upstream-conflicts
+                echo
+              fi
+              echo "Workflow: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            } > /tmp/owntv-upstream-issue.txt
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body-file /tmp/owntv-upstream-issue.txt
+          fi
