@@ -17,7 +17,6 @@ on:
 permissions:
   contents: write   # required so tag builds can create a Release
   statuses: write   # publish first Lint diagnostic on the PR commit
-  issues: write     # update one PR comment listing all source errors
 
 # Core (tv.own.owntv:core, :player-core) and the mpv engine (tv.own.owntv:libmpv) resolve from OwnTV's
 # public Maven repository, https://ahxn00.github.io/OwnTV_Core/maven — no token, so fork pull requests
@@ -141,52 +140,49 @@ jobs:
           if [ -n "${OWNTV_CORE_PATH:-}" ]; then CORE_ARGS+=("-Powntv.corePath=$OWNTV_CORE_PATH"); fi
           ./gradlew lintStandardDebug --stacktrace "${CORE_ARGS[@]}" 2>&1 | tee lint-build.log
 
-      # Publish actionable Lint failures rather than unrelated Gradle upgrade warnings.
-      # Update one PR comment in place to keep repeated CI runs readable.
-      - name: Publish Android Lint error report
+      # Expose the underlying Gradle/Lint failure, even if Lint aborts before
+      # writing lint-results files. Commit statuses are readable via repository API.
+      - name: Publish Android Lint diagnostic
         if: ${{ failure() && github.event_name == 'pull_request' }}
         env:
           GH_TOKEN: ${{ github.token }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           REPORT=$(find app/build/reports -maxdepth 2 -name 'lint-results-*.txt' -type f -print -quit 2>/dev/null || true)
           DIAGNOSTICS=()
           if [ -n "$REPORT" ]; then
-            mapfile -t DIAGNOSTICS < <(grep -E ':[0-9]+(:[0-9]+)?: (Error|Fatal):' "$REPORT" | head -n 25 || true)
+            mapfile -t DIAGNOSTICS < <(grep -E ':[0-9]+(:[0-9]+)?: (Error|Fatal):' "$REPORT" | head -n 20 || true)
           fi
           if [ "${#DIAGNOSTICS[@]}" -eq 0 ] && [ -f lint-build.log ]; then
-            mapfile -t DIAGNOSTICS < <(grep -E '^e: |^error: |:[0-9]+(:[0-9]+)?: (Error|Fatal):|^FAILURE:' lint-build.log | head -n 25 || true)
+            # AGP can fail without emitting a .txt report. Capture every actual cause,
+            # not Gradle's generic "FAILURE: Build completed with N failures" header.
+            mapfile -t DIAGNOSTICS < <(
+              awk '
+                /^\\* What went wrong:/ {capture=1; next}
+                /^\\* Try:/ {capture=0}
+                capture && NF {print}
+              ' lint-build.log | head -n 15
+            )
           fi
           if [ "${#DIAGNOSTICS[@]}" -eq 0 ]; then
-            DIAGNOSTICS=("Lint failed, no source-level diagnostic in the report")
+            DIAGNOSTICS=("Lint failed without a detailed report; see Actions logs")
           fi
-          FIRST="${DIAGNOSTICS[0]}"
-          FIRST="${FIRST##*/}"
-          FIRST="${FIRST:0:130}"
-          echo "First real error: $FIRST"
-          gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$PR_HEAD_SHA" \
-            -f state=failure -f context=diagnostics/owntv-mobile-lint -f description="$FIRST"
 
-          MARKER='<!-- owntv-mobile-lint-diagnostics -->'
-          BODY="$MARKER"
-          BODY+=$'\\n**Android Lint: detected errors (first 25):**\\n\\n'
-          BODY+=$'\\x60\\x60\\x60text\\n'
-          for LINE in "${DIAGNOSTICS[@]}"; do
-            # Keep the source location and lint ID; remove any runner directory prefix.
-            LINE="${LINE##*/}"
-            BODY+="$LINE"
-            BODY+=$'\\n'
+          # The first four lines cover the task and its nested root causes.
+          # Additional separate contexts prevent the 140-character GitHub status cap
+          # from truncating every useful part of the error.
+          COUNT=${#DIAGNOSTICS[@]}
+          if [ "$COUNT" -gt 6 ]; then COUNT=6; fi
+          for ((i=0; i<COUNT; i++)); do
+            DIAG="${DIAGNOSTICS[$i]}"
+            DIAG="${DIAG##*/}"
+            DIAG="${DIAG:0:130}"
+            CONTEXT="diagnostics/owntv-lint/$((i+1))"
+            echo "$CONTEXT: $DIAG"
+            gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$PR_HEAD_SHA" \
+              -f state=failure -f context="$CONTEXT" -f description="$DIAG"
           done
-          BODY+=$'\\x60\\x60\\x60'
-          EXISTING=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" \
-            --jq '.[] | select(.body | startswith("<!-- owntv-mobile-lint-diagnostics -->")) | .id' | head -n 1 || true)
-          if [ -n "$EXISTING" ]; then
-            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$EXISTING" -f body="$BODY" > /dev/null
-          else
-            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$BODY" > /dev/null
-          fi
 
       - name: Upload test and lint reports
         if: always()   # the reports matter most when the step above failed
