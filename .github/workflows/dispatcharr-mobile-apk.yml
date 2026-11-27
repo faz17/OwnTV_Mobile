@@ -152,12 +152,22 @@ jobs:
         run: |
           set -euo pipefail
           ERROR=""
-          for file in OwnTV_Core/core-test.log OwnTV_Mobile/mobile-build.log; do
+          # Report the actual Kotlin/source diagnostic before generic Gradle task failures.
+          # A task label alone hid the error in earlier builds.
+          for file in OwnTV_Mobile/mobile-build.log OwnTV_Core/core-test.log; do
             if [ -f "$file" ]; then
-              ERROR=$(grep -E -m 1 '^e: |^error: |^FAILURE:|^> Task .*FAILED|^Execution failed for task|^.*tests? FAILED' "$file" || true)
+              ERROR=$(grep -E -m 1 '^e: |^error: |^.*\.kt:[0-9]+:[0-9]+: error: |^.*\.kt:[0-9]+: error: ' "$file" || true)
               if [ -n "$ERROR" ]; then break; fi
             fi
           done
+          if [ -z "$ERROR" ]; then
+            for file in OwnTV_Mobile/mobile-build.log OwnTV_Core/core-test.log; do
+              if [ -f "$file" ]; then
+                ERROR=$(grep -E -m 1 '^FAILURE:|^> Task .*FAILED|^Execution failed for task|^.*tests? FAILED' "$file" || true)
+                if [ -n "$ERROR" ]; then break; fi
+              fi
+            done
+          fi
           ERROR="${ERROR:-Build failed (see Actions report)}"
           ERROR="${ERROR:0:130}"
           gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
