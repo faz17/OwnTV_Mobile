@@ -7,9 +7,10 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write   # create signed GitHub Releases
   statuses: write
 
 concurrency:
@@ -142,6 +143,70 @@ jobs:
           path: OwnTV_Mobile/app/build/outputs/apk/standard/debug/*.apk
           if-no-files-found: error
           retention-days: 14
+
+      # Keep the first versioned release immutable. In-app updates read
+      # the latest numbered GitHub Release from faz17/OwnTV_Mobile, not upstream.
+      - name: Check first Mobile fork release
+        id: first_release
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view v2.0.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "create=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "create=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Use the same persistent certificate as the already-installable signed
+      # debug APK, and a greater versionCode so Android installs it in place.
+      - name: Build signed Mobile v2.0.0 release
+        if: steps.first_release.outputs.create == 'true'
+        working-directory: OwnTV_Mobile
+        env:
+          CORE_DIR: ${{ github.workspace }}/OwnTV_Core
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          export VERSION_CODE=$((300000 + ${GITHUB_RUN_NUMBER}))
+          export VERSION_NAME=2.0.0
+          ./gradlew :app:lintStandardDebug :app:assembleStandardRelease "-Powntv.corePath=$CORE_DIR" --stacktrace --no-daemon
+          APK=$(find app/build/outputs/apk/standard/release -name '*.apk' -type f | head -n 1)
+          test -n "$APK"
+          mkdir -p ../dist
+          cp "$APK" ../dist/OwnTV-Mobile-v2.0.0.apk
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --print-certs ../dist/OwnTV-Mobile-v2.0.0.apk
+
+      - name: Publish first versioned Mobile fork release
+        if: steps.first_release.outputs.create == 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v2.0.0
+          target_commitish: ${{ github.sha }}
+          name: OwnTV Mobile Dispatcharr v2.0.0
+          prerelease: false
+          make_latest: true
+          files: dist/OwnTV-Mobile-v2.0.0.apk
+          fail_on_unmatched_files: true
+          body: |
+            First versioned release of the faz17 OwnTV Mobile fork.
+            Includes Dispatcharr DVR recordings, scheduled recordings, EPG actions,
+            list/grid layouts, navigation fixes and Italian translations.
+
+            The app checks faz17/OwnTV_Mobile for future GitHub Releases, instead of
+            offering an upstream APK that would overwrite the customizations.
+
+            Use the same permanent signing certificate and a higher Android versionCode
+            for every future release. Existing debug preview installations use
+            a high placeholder versionName (99.99.99): install this first release
+            manually once before in-app version checks can compare correctly.
+            Personal data and preferences stay on the device when Android accepts
+            an in-place signed upgrade.
 
       # Expose the first compiler failure as a commit status. GitHub's Actions
       # logs are not always accessible through repository API clients.
