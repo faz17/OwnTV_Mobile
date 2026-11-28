@@ -41,6 +41,14 @@ class BackupViewModel(
     private val protection: tv.own.owntv.core.profile.ProfileProtection,
 ) : ViewModel() {
 
+    init {
+        val store = DispatcharrConnectionStore.get(context)
+        backup.registerSupplementarySecret(object : BackupManager.SupplementarySecret {
+            override fun export(): String? = store.exportBackupJson()
+            override fun restore(value: String) = store.restoreBackupJson(value)
+        })
+    }
+
     /** Profiles with a profile lock or a Settings lock: another profile needs one of their PINs. */
     suspend fun protectedIds(): Set<Long> = protection.protectedIds()
 

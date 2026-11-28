@@ -654,6 +654,10 @@ private fun appSections(vm: SettingsViewModel): List<SettingSection> {
                     "tab_DNS", MobileIcons.Translate, stringResource(R.string.settings_dns), stringResource(R.string.settings_line_dns),
                     if (dns.enabled && dnsHost.isNotBlank()) dnsHost else if (dns.enabled) on else off, SettingsLeaf.DNS.route,
                 ),
+                pageItem(
+                    "tab_DISPATCHARR", MobileIcons.LiveTv, stringResource(R.string.dispatcharr_mobile_title),
+                    stringResource(R.string.dispatcharr_mobile_description), null, SettingsLeaf.DISPATCHARR.route,
+                ),
             ),
         ),
         SettingSection(

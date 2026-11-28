@@ -96,6 +96,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # This PR uses unreleased Core APIs. Keep main and other PRs on their pinned Core.
+      - name: Checkout Dispatcharr Core for feature PR
+        if: ${{ github.event_name == 'pull_request' && github.head_ref == 'feature/dispatcharr-source-switch' }}
+        uses: actions/checkout@v7
+        with:
+          repository: faz17/OwnTV_Core
+          ref: feature/dispatcharr-source-switch
+          path: OwnTV_Core
+          persist-credentials: false
+
+      - name: Enable Dispatcharr Core composite build
+        if: ${{ github.event_name == 'pull_request' && github.head_ref == 'feature/dispatcharr-source-switch' }}
+        run: echo "OWNTV_CORE_PATH=$GITHUB_WORKSPACE/OwnTV_Core" >> "$GITHUB_ENV"
+
       - name: Set up JDK 25
         uses: actions/setup-java@v6
         with:
@@ -108,7 +122,10 @@ jobs:
           # action still asks for it by default, which fails the whole setup step.
           packages: 'platform-tools'
       - name: Assemble standard debug + release APKs
-        run: ./gradlew :app:assembleStandardDebug :app:assembleStandardRelease --console=plain
+        run: |
+          CORE_ARGS=()
+          if [ -n "${OWNTV_CORE_PATH:-}" ]; then CORE_ARGS+=("-Powntv.corePath=$OWNTV_CORE_PATH"); fi
+          ./gradlew :app:assembleStandardDebug :app:assembleStandardRelease --console=plain "${CORE_ARGS[@]}"
       - name: Verify pseudolocale packaging
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}

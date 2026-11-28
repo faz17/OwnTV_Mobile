@@ -521,6 +521,7 @@ internal fun watchingSections(vm: SettingsViewModel): List<SettingSection> {
     val preRoll = s.recordingPreRollMinutes.pref(RecordingSchedule.DEFAULT_PRE_ROLL_MINUTES)
     val postRoll = s.recordingPostRollMinutes.pref(RecordingSchedule.DEFAULT_POST_ROLL_MINUTES)
     val recordWatching = s.recordWhatImWatching.pref(false)
+    val recorderBackend = s.recordingBackend.pref(SettingsRepository.RecordingBackend.AUTO)
     val recordingsVm: RecordingsViewModel = koinViewModel()
 
     // The player's record button costs the one spare connection, so turning it on says so first.
@@ -616,6 +617,18 @@ internal fun watchingSections(vm: SettingsViewModel): List<SettingSection> {
             stringResource(R.string.recording_settings_group),
             note = stringResource(R.string.settings_recording_timers_inexact).takeUnless { recordingsVm.timersAreExact },
             items = listOf(
+                choiceItem(
+                    "rec_destination", MobileIcons.Record, g,
+                    stringResource(R.string.dispatcharr_rec_backend_title),
+                    stringResource(R.string.dispatcharr_rec_backend_description), null,
+                    listOf(
+                        SettingsChoice(SettingsRepository.RecordingBackend.AUTO, stringResource(R.string.dispatcharr_rec_backend_auto)),
+                        SettingsChoice(SettingsRepository.RecordingBackend.LOCAL, stringResource(R.string.dispatcharr_rec_backend_local)),
+                        SettingsChoice(SettingsRepository.RecordingBackend.DISPATCHARR, stringResource(R.string.dispatcharr_rec_backend_server)),
+                    ),
+                    recorderBackend, SettingsRepository.RecordingBackend.AUTO,
+                    { choice -> vm.edit { setRecordingBackend(choice) } },
+                ),
                 switchItem(
                     "rec_reserve", MobileIcons.Record, stringResource(R.string.settings_recording_reserve),
                     stringResource(R.string.settings_line_rec_reserve),

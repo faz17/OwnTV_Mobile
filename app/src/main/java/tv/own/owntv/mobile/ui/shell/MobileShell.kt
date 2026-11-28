@@ -77,6 +77,7 @@ import tv.own.owntv.core.settings.SettingsRepository
 import tv.own.owntv.mobile.ui.nav.MobileDestination
 import tv.own.owntv.mobile.ui.nav.MobileDestination.Companion.standingFor
 import tv.own.owntv.mobile.ui.nav.MobileDestination.Companion.visible
+import tv.own.owntv.mobile.ui.nav.MobileDestination.Companion.ordered
 import tv.own.owntv.mobile.ui.nav.MobileNavHost
 import tv.own.owntv.mobile.playback.PipController
 import tv.own.owntv.mobile.ui.nav.PLAYER_ROUTE
@@ -122,6 +123,8 @@ fun MobileShell(
     val shellViewModel: ShellViewModel = koinViewModel()
     val sportsPlayback: SportsPlayback = koinInject()
     val sections by shellViewModel.visibleSections.collectAsStateWithLifecycle()
+    val navOrder by koinInject<SettingsRepository>().navMenuOrder.collectAsStateWithLifecycle(tv.own.owntv.core.nav.MainSection.browseOrder)
+    val navMode by koinInject<SettingsRepository>().navMenuMode.collectAsStateWithLifecycle(SettingsRepository.NavMenuMode.STATIC)
 
     val profilesViewModel: ProfilesViewModel = koinViewModel()
     val gateSession: ProfileGateSession = koinViewModel()
@@ -207,8 +210,15 @@ fun MobileShell(
     val useRail = windowWidthDp >= 600
     // A phone held sideways (409 dp tall) gets the compact rail and the one-line header.
     val compactRail = windowHeightDp() < 600
+    // DYNAMIC retains the developer's original automatic ordering and visibility.
+    // Only STATIC applies the manually saved ordering.
     val destinations =
-        (if (useRail) MobileDestination.rail else MobileDestination.bottomBar).visible(sections)
+        (if (useRail) MobileDestination.rail else MobileDestination.bottomBar)
+            .visible(sections)
+            .let { items ->
+                if (navMode == SettingsRepository.NavMenuMode.STATIC) items.ordered(navOrder) else items
+            }
+            .let { if (useRail) it else it.take(5) }
     // A detail route ("live/42/false") keeps its tab selected and its tab's title: on a phone the
     // channel you opened is still Live TV, and the bottom bar must not go blank while you watch it.
     val current = destinations.firstOrNull { it.route == currentRoute }
@@ -808,6 +818,26 @@ private fun NavHostController.onNavClick(
     sportsPlayback: SportsPlayback,
 ) {
     when {
+        // Home is the graph's root: pop to the real root instead of restoring a
+        // saved tab stack (which can resurrect the More page over Home).
+        destination == MobileDestination.HOME -> {
+            if (currentDestination?.route == MobileDestination.HOME.route) {
+                shell.requestScrollToTop(destination.route)
+            } else if (!popBackStack(MobileDestination.HOME.route, inclusive = false)) {
+                navigate(MobileDestination.HOME.route) {
+                    popUpTo(graph.startDestinationId) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+        }
+        // More is a hub, not a content tab. Return to the existing More entry when
+        // opening Recordings or Settings from it; otherwise open it afresh.
+        // Do not restore a saved tab stack, which can reopen the child page instead.
+        destination == MobileDestination.MORE -> {
+            if (!popBackStack(MobileDestination.MORE.route, inclusive = false)) {
+                navigate(MobileDestination.MORE.route) { launchSingleTop = true }
+            }
+        }
         // A film or a channel opened under this tab: back to the tab's own list first (only the list
         // itself scrolls to the top).
         // A film lit under Library but opened from Search is not on Library's stack: go to Library then.

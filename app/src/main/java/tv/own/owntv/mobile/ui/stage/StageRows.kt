@@ -283,6 +283,8 @@ fun StageMenuItem(
     role: Role = Role.Button,
     leading: (@Composable () -> Unit)? = null,
     tags: (@Composable RowScope.() -> Unit)? = null,
+    /** Compact badge immediately following the label, before the trailing state/check. */
+    inlineTag: (@Composable () -> Unit)? = null,
     mark: tv.own.owntv.core.ui.stage.PlaylistMark? = null,
     onLongClick: (() -> Unit)? = null,
     /** More's rows are 48 high and end in a dim 13 dp chevron. */
@@ -320,17 +322,34 @@ fun StageMenuItem(
             leading != null -> leading()
             icon != null -> StageIcon(icon, 18.dp, iconTint)
         }
-        Text(
-            label,
-            style = stageText(14.5f, 600),
-            color = fg,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            // Takes the free width, so whatever follows sits at the end (`margin-left: auto`). With a [value]
-            // (a hint like "The order your playlist uses") the label is measured first and the hint shortens.
-            modifier = if (value != null) Modifier else Modifier.weight(1f),
-        )
-        if (value != null) Spacer(Modifier.weight(1f))
+        if (inlineTag != null) {
+            // Keep name and badge together at the beginning; the trailing check remains at right.
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    label,
+                    style = stageText(14.5f, 600),
+                    color = fg,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                inlineTag()
+            }
+        } else {
+            Text(
+                label,
+                style = stageText(14.5f, 600),
+                color = fg,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = if (value != null) Modifier else Modifier.weight(1f),
+            )
+            if (value != null) Spacer(Modifier.weight(1f))
+        }
         // 6 dp between the trailing parts (`.mi .tag + .n`).
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             tags?.let { Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically, content = it) }

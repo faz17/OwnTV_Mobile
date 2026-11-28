@@ -97,7 +97,7 @@ class OwnTVMobileApp : Application(), androidx.work.Configuration.Provider {
         // This app's own releases, not the television's. Left at its default, an update check here
         // would offer OwnTV-v*.apk — a different applicationId, which the installer refuses after
         // the whole download.
-        CoreBuildInfo.releaseRepo = "ahXN00/OwnTV_Mobile"
+        CoreBuildInfo.releaseRepo = "faz17/OwnTV_Mobile"
         // Fixed for this process before any player exists: the setting applies only after a restart.
         tv.own.owntv.core.player.FfmpegAudioSetting.load(this)
         // First thing after the context exists: a crash from here on leaves a trace on disk instead
@@ -205,7 +205,10 @@ class OwnTVMobileApp : Application(), androidx.work.Configuration.Provider {
         // A new user starts on Stage with glass on; an existing install keeps its look.
         appScope.launch {
             runCatching {
-                org.koin.core.context.GlobalContext.get().get<tv.own.owntv.core.settings.SettingsRepository>().applyPhoneStageDefaults(
+                val phoneSettings = org.koin.core.context.GlobalContext.get()
+                    .get<tv.own.owntv.core.settings.SettingsRepository>()
+                phoneSettings.applyPhoneVisualDefaults()
+                phoneSettings.applyPhoneStageDefaults(
                     tv.own.owntv.mobile.ui.screens.settings.PHONE_GLASS_DEFAULT_PCT,
                 )
             }

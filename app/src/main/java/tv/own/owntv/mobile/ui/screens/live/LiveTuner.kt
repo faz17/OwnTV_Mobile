@@ -14,6 +14,14 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
+import tv.own.owntv.core.dispatcharr.DispatcharrApi
+import tv.own.owntv.core.dispatcharr.DispatcharrChannelUrls
+import tv.own.owntv.core.dispatcharr.DispatcharrXtreamChannelUrls
+import tv.own.owntv.mobile.ui.screens.settings.DispatcharrConnectionStore
 import kotlinx.coroutines.withContext
 import tv.own.owntv.core.content.AdultCategoryClassifier
 import tv.own.owntv.core.customize.CustomizationStore
@@ -114,6 +122,80 @@ class LiveTuner(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
 
+    // When Dispatcharr is configured, these actions create server jobs, not local files.
+    private val dispatcharrStore = DispatcharrConnectionStore.get(context)
+    private val dispatcharrHttp = OkHttpClient.Builder().callTimeout(15, TimeUnit.SECONDS).build()
+    private val dvrMutex = Mutex()
+    private val remoteRecordingIds = MutableStateFlow<Map<Long, Int>>(emptyMap())
+
+    private val recordingBackend = settings.recordingBackend.stateIn(
+        scope, SharingStarted.Eagerly, SettingsRepository.RecordingBackend.AUTO,
+    )
+
+    fun isServerDvrConfigured(): Boolean = when (recordingBackend.value) {
+        SettingsRepository.RecordingBackend.LOCAL -> false
+        SettingsRepository.RecordingBackend.DISPATCHARR -> true
+        SettingsRepository.RecordingBackend.AUTO -> dispatcharrStore.connection.value != null
+    }
+
+    fun dispatcharrDvrApi(): DispatcharrApi? = dispatcharrStore.connection.value?.let {
+        DispatcharrApi(dispatcharrHttp, it.origin, it.apiKey)
+    }
+    fun dispatcharrOrigin(): String? = dispatcharrStore.connection.value?.origin
+
+    private fun serverRecorder(ch: ChannelEntity): DispatcharrApi? {
+        val config = dispatcharrStore.connection.value ?: return null
+        val matched = DispatcharrChannelUrls.parseForServer(ch.streamUrl, config.origin) != null ||
+            DispatcharrXtreamChannelUrls.parseForServer(ch.streamUrl, config.origin) != null
+        return if (matched) DispatcharrApi(dispatcharrHttp, config.origin, config.apiKey) else null
+    }
+
+    private fun serverRecorderOrFail(ch: ChannelEntity): DispatcharrApi =
+        serverRecorder(ch) ?: throw IllegalArgumentException()
+
+    private fun reportServerDvrFailure(error: Throwable) {
+        val label = if (error is IllegalArgumentException) {
+            R.string.dispatcharr_mobile_record_unsupported
+        } else {
+            R.string.dispatcharr_mobile_record_failed
+        }
+        android.widget.Toast.makeText(context, context.getString(label), android.widget.Toast.LENGTH_LONG).show()
+    }
+
+    private fun updateServerRecording(id: Long, serverId: Int?) {
+        remoteRecordingIds.value = remoteRecordingIds.value.toMutableMap().apply {
+            if (serverId == null) remove(id) else put(id, serverId)
+        }
+    }
+
+    /** Also find server recordings started on the website or another device. */
+    fun refreshServerRecording(ch: ChannelEntity) {
+        if (!isServerDvrConfigured()) return
+        scope.launch {
+            runCatching {
+                dvrMutex.withLock {
+                    updateServerRecording(ch.id, serverRecorderOrFail(ch).activeServerRecording(ch.streamUrl))
+                }
+            }
+        }
+    }
+
+    private suspend fun toggleServerRecording(ch: ChannelEntity, programme: tv.own.owntv.core.parser.XtEpgEntry?) {
+        dvrMutex.withLock {
+            val api = serverRecorderOrFail(ch)
+            val existing = api.activeServerRecording(ch.streamUrl)
+            if (existing != null) {
+                api.stopServerRecording(existing)
+                updateServerRecording(ch.id, null)
+                return@withLock
+            }
+            val now = System.currentTimeMillis()
+            val stopAt = programme?.stopMs?.takeIf { it > now }
+                ?: (now + tv.own.owntv.core.recording.RecordingSchedule.NO_GUIDE_RUNTIME_MINUTES * 60_000L)
+            updateServerRecording(ch.id, api.scheduleServerRecording(ch.streamUrl, now, stopAt))
+        }
+    }
+
     // --- "Record what I'm watching" --------------------------------------------------------------
 
 
@@ -133,6 +215,12 @@ class LiveTuner(
      */
     fun togglePlayerRecording() {
         scope.launch {
+            val playing = channel.value ?: return@launch
+            if (isServerDvrConfigured()) {
+                runCatching { toggleServerRecording(playing, _nowNext.value?.now) }
+                    .onFailure(::reportServerDvrFailure)
+                return@launch
+            }
             val open = playerRecording.value
             if (open != null) {
                 recordings.stop(open)
@@ -151,19 +239,37 @@ class LiveTuner(
      */
     fun recordNow(ch: tv.own.owntv.core.database.entity.ChannelEntity) {
         scope.launch {
+            if (isServerDvrConfigured()) {
+                runCatching { toggleServerRecording(ch, if (ch.id == channel.value?.id) _nowNext.value?.now else null) }
+                    .onFailure(::reportServerDvrFailure)
+                return@launch
+            }
             val pid = settings.activeProfileId.first().takeIf { it >= 0 } ?: return@launch
             startRecordingNow(ch, pid, if (ch.id == channel.value?.id) _nowNext.value?.now else null)
         }
     }
 
     /** Channels with a recording running right now, so their menu offers Stop instead of Record. */
-    val recordingChannelIds: StateFlow<Set<Long>> = recordings.observeRunning()
-        .map { rows -> rows.mapTo(HashSet()) { it.channelId } }
+    val recordingChannelIds: StateFlow<Set<Long>> = combine(
+        recordings.observeRunning().map { rows -> rows.mapTo(HashSet()) { it.channelId } },
+        remoteRecordingIds,
+    ) { local, remote -> local + remote.keys }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     /** Stop the running recording(s) of this channel, keeping what was captured. */
     fun stopRecordingOn(ch: tv.own.owntv.core.database.entity.ChannelEntity) {
         scope.launch {
+            if (isServerDvrConfigured()) {
+                runCatching {
+                    dvrMutex.withLock {
+                        val api = serverRecorderOrFail(ch)
+                        val existing = api.activeServerRecording(ch.streamUrl) ?: remoteRecordingIds.value[ch.id]
+                        if (existing != null) api.stopServerRecording(existing)
+                        updateServerRecording(ch.id, null)
+                    }
+                }.onFailure(::reportServerDvrFailure)
+                return@launch
+            }
             recordings.observeRunning().first().filter { it.channelId == ch.id }.forEach { recordings.stop(it) }
         }
     }
@@ -174,6 +280,7 @@ class LiveTuner(
         startMs: Long,
         stopMs: Long,
     ): List<tv.own.owntv.core.database.entity.RecordingEntity> {
+        if (isServerDvrConfigured()) return emptyList()
         val window = tv.own.owntv.core.recording.RecordingSchedule.manualWindow(startMs, stopMs, System.currentTimeMillis())
             ?: return emptyList()
         return recordings.clashesWith(ch.sourceId, window.first, window.last)
@@ -187,6 +294,15 @@ class LiveTuner(
         onScheduled: (Long) -> Unit,
     ) {
         scope.launch {
+            if (isServerDvrConfigured()) {
+                runCatching {
+                    dvrMutex.withLock {
+                        serverRecorderOrFail(ch).scheduleServerRecording(ch.streamUrl, startMs, stopMs)
+                    }
+                }.onSuccess { onScheduled(startMs) }
+                    .onFailure(::reportServerDvrFailure)
+                return@launch
+            }
             val pid = settings.activeProfileId.first().takeIf { it >= 0 } ?: return@launch
             recordings.scheduleManual(pid, ch, startMs, stopMs)?.let { onScheduled(it.programmeStartMs) }
         }

@@ -129,6 +129,11 @@ android {
 
     buildTypes {
         debug {
+            // The Dispatcharr CI test APK can use the persistent release certificate.
+            // Opt-in only: other debug builds retain the normal Android debug key.
+            if (System.getenv("OWNTV_SIGN_DEBUG_WITH_RELEASE_KEY") == "true" && releaseKeystore != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             // Pseudolocales (en-XA / ar-XB) are the layout-stress instrument: they lengthen every
             // string and mirror the layout, so an overflowing screen shows up before a translator
             // ever sees it. localeFilters below would otherwise strip them, so the debug-only
@@ -352,6 +357,7 @@ dependencies {
     implementation(libs.androidx.media3.ui)
 
     implementation(libs.coil.compose)
+    implementation(libs.okhttp)
     implementation(libs.coil.network.okhttp)
 
     // Casting. The sender half only: the Chromecast decodes the stream itself, so nothing of the
