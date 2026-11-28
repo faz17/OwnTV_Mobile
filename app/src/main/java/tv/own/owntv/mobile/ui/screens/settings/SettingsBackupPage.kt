@@ -507,6 +507,14 @@ private fun ExportSheet(
             }
             StageGroupLabel(stringResource(R.string.settings_backup_encrypt_title))
             Text(stringResource(R.string.settings_backup_encrypt_message), style = stageText(11.5f, 500, lineHeight = 1.4f), color = palette.muted, modifier = Modifier.padding(horizontal = 12.dp))
+            if (BackupManager.Section.SETTINGS in sections) {
+                Text(
+                    stringResource(R.string.dispatcharr_backup_key_hint),
+                    style = stageText(11.5f, 600, lineHeight = 1.4f),
+                    color = palette.muted,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
             StageSearchField(
                 value = password,
                 onValueChange = { password = it },

@@ -45,4 +45,5 @@
     <string name="dispatcharr_remote_empty_completed">Nessuna registrazione completata</string>
     <string name="dispatcharr_recordings_view_list">List</string>
     <string name="dispatcharr_recordings_view_grid">Grid</string>
+    <string name="dispatcharr_backup_key_hint">To include the Dispatcharr API key, leave Settings selected and enter a backup password. Unencrypted backups intentionally omit this key.</string>
 </resources>
